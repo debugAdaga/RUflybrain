@@ -146,6 +146,66 @@
     <!-- Three.js v0.128.0 (vendored) — не обновляйте одну библиотеку без другой -->
     <script src="./js/vendor/three.min.js"></script>
     <script src="./js/vendor/OrbitControls.js"></script>
+
+    <!-- ============================================================
+         🪤 ПЕРЕХВАТЧИК RENDER
+         Устанавливается ДО main.js и ловит scene/camera/fly
+         на первом же кадре рендера.
+         ============================================================ -->
+    <script>
+    (function () {
+        'use strict';
+
+        if (!window.THREE || !THREE.WebGLRenderer) {
+            console.warn('🪤 THREE.WebGLRenderer не найден — перехват невозможен');
+            return;
+        }
+
+        const originalRender = THREE.WebGLRenderer.prototype.render;
+        let loggedScene = false, loggedCamera = false, loggedFly = false;
+
+        THREE.WebGLRenderer.prototype.render = function (scene, camera) {
+            // Ловим сцену
+            if (!window.__scene) {
+                window.__scene = scene;
+                if (!loggedScene) {
+                    loggedScene = true;
+                    console.log('%c✅ Сцена перехвачена через render()', 'color:lime;font-weight:bold', scene);
+                }
+            }
+            // Ловим камеру
+            if (!window.__camera) {
+                window.__camera = camera;
+                if (!loggedCamera) {
+                    loggedCamera = true;
+                    console.log('%c✅ Камера перехвачена через render()', 'color:lime;font-weight:bold', camera);
+                }
+            }
+            // Ловим рендерер
+            if (!window.__renderer) window.__renderer = this;
+
+            // Пытаемся найти муху — сначала по имени
+            if (!window.__fly && window.__scene) {
+                window.__scene.traverse(function (obj) {
+                    if (window.__fly) return;
+                    const n = (obj.name || '').toLowerCase();
+                    if (n.includes('fly') && !n.includes('flybrain')) {
+                        window.__fly = obj;
+                        if (!loggedFly) {
+                            loggedFly = true;
+                            console.log('%c🐝 Муха найдена по имени:', 'color:lime;font-weight:bold', obj);
+                        }
+                    }
+                });
+            }
+
+            return originalRender.call(this, scene, camera);
+        };
+
+        console.log('%c🪤 Перехватчик render() установлен — ждём первый кадр', 'color:cyan;font-weight:bold');
+    })();
+    </script>
+
     <script type="text/javascript" src="./js/constants.js?v=17"></script>
     <script type="text/javascript" src="./js/connectome.js?v=17"></script>
     <script type="text/javascript" src="./js/brain-worker-bridge.js?v=17"></script>
@@ -161,7 +221,9 @@
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         ЛОГИКА: ДОБАВЛЕНИЕ МУХ И РАЗМНОЖЕНИЕ
+         🐝 МОДУЛЬ ДОБАВЛЕНИЯ МУХ И РАЗМНОЖЕНИЯ
+         Работает с window.__scene / __camera / __fly,
+         которые заполнил перехватчик выше.
          ============================================================ -->
     <script>
     (function () {
@@ -169,181 +231,188 @@
 
         console.log('%c🐝 Модуль размножения мух: инициализация…', 'color:orange;font-weight:bold');
 
-        const canvas = document.getElementById('canvas');
-        if (!canvas) { console.error('Нет #canvas'); return; }
+        const flies = [];      // все созданные/найденные клоны
+        let baseline = null;   // оригинальная муха
 
-        // ---------- 1. Находим сцену / камеру / первую муху ----------
-        let scene = null, camera = null, renderer = null, firstFly = null;
-
-        // Из window.__flybrain (если пользователь добавил в main.js)
-        if (window.__flybrain) {
-            scene    = window.__flybrain.scene;
-            camera   = window.__flybrain.camera;
-            renderer = window.__flybrain.renderer;
-            firstFly = window.__flybrain.fly;
-        }
-
-        // Из глобальных переменных
-        if (!scene)  scene  = window.scene;
-        if (!camera) camera = window.camera;
-
-        // Ищем муху в сцене
-        function findFly(root) {
-            if (!root) return null;
-            let found = null;
-            root.traverse(obj => {
-                if (found) return;
-                const n = (obj.name || '').toLowerCase();
-                if (n.includes('fly') && !n.includes('flybrain')) found = obj;
+        // ---------- Ищем муху-кандидата ----------
+        function isLikelyFly(obj) {
+            if (!obj || !obj.isObject3D) return false;
+            // Признак: много детей (меши тела, лапки, крылья, глаза)
+            const childCount = (obj.children || []).length;
+            if (childCount < 3) return false;
+            // Признак: имя содержит fly/insect/drosophila
+            const n = (obj.name || '').toLowerCase();
+            if (/fly|insect|drosophila/.test(n) && !/flybrain/.test(n)) return true;
+            // Признак: у детей есть имена с body/head/thorax/wing/leg
+            const hasAnatomy = obj.children.some(function (c) {
+                return /body|head|thorax|abdomen|wing|leg|antenna|eye/.test(
+                    (c.name || '').toLowerCase()
+                );
             });
-            if (!found) {
-                root.traverse(obj => {
-                    if (found) return;
-                    if (obj.type === 'Group' && obj.children && obj.children.length >= 3) {
-                        const hasBody = obj.children.some(c =>
-                            (c.name || '').toLowerCase().match(/body|thorax|abdomen|head/));
-                        if (hasBody) found = obj;
-                    }
-                });
-            }
-            return found;
+            return hasAnatomy;
         }
 
-        if (scene && !firstFly) firstFly = findFly(scene);
+        function findFlyCandidates(root) {
+            if (!root) return [];
+            const candidates = [];
+            root.traverse(function (obj) {
+                if (isLikelyFly(obj)) {
+                    // Считаем глубину/размер, чтобы выбрать самого крупного
+                    let total = 0;
+                    obj.traverse(function () { total++; });
+                    candidates.push({ obj: obj, size: total });
+                }
+            });
+            // Сортируем по размеру — самая крупная группа вверху
+            candidates.sort(function (a, b) { return b.size - a.size; });
+            return candidates;
+        }
 
-        // ---------- 2. Хранилище всех мух ----------
-        const flies = [];
-        if (firstFly) flies.push(firstFly);
-        console.log('🐝 Найдено мух при старте:', flies.length);
+        function resolveFly() {
+            if (baseline) return baseline;
+            if (window.__fly) { baseline = window.__fly; return baseline; }
 
-        // ---------- 3. Функция создания новой мухи ----------
+            const scene = window.__scene;
+            if (!scene) return null;
+
+            const candidates = findFlyCandidates(scene);
+            if (candidates.length === 0) return null;
+
+            console.log('🎯 Кандидаты в мухи:', candidates.map(function (c) {
+                return c.obj.name + ' (' + c.size + ')';
+            }));
+
+            baseline = candidates[0].obj;
+            window.__fly = baseline;
+            console.log('%c🐝 Муха выбрана автоматически:', 'color:lime;font-weight:bold', baseline);
+            return baseline;
+        }
+
+        // ---------- Клонирование ----------
         function spawnFly(x, z) {
-            if (!scene || !firstFly) {
-                alert('Не удалось найти сцену или первую муху.\n\n' +
-                      'Открой js/main.js и добавь в конец файла строку:\n\n' +
-                      'window.__flybrain = { scene, camera, renderer, fly };\n\n' +
-                      'Затем обнови страницу.');
+            const base = resolveFly();
+            if (!base) {
+                alert('Муха не найдена.\n\n' +
+                      'Открой консоль (F12) и проверь:\n' +
+                      '  window.__scene — есть?\n' +
+                      '  window.__fly — есть?\n' +
+                      'Если нет — перехват render() не сработал.');
                 return null;
             }
 
-            // Клонируем муху — глубоко, чтобы все меши и материалы скопировались
             let clone;
             try {
-                clone = firstFly.clone(true);
+                clone = base.clone(true);
             } catch (e) {
-                console.error('Не удалось клонировать муху:', e);
+                console.error('Ошибка клонирования:', e);
                 return null;
             }
 
-            // Клонируем материалы, чтобы мухи не делили один цвет
-            clone.traverse(obj => {
-                if (obj.material) {
-                    if (Array.isArray(obj.material)) {
-                        obj.material = obj.material.map(m => m.clone());
+            // Отвязываем материалы, чтобы мухи не делили цвет
+            clone.traverse(function (o) {
+                if (o.material) {
+                    if (Array.isArray(o.material)) {
+                        o.material = o.material.map(function (m) { return m.clone(); });
                     } else {
-                        obj.material = obj.material.clone();
+                        o.material = o.material.clone();
                     }
                 }
             });
 
-            // Ставим в указанное место
-            clone.position.set(
-                typeof x === 'number' ? x : (Math.random() - 0.5) * 200,
-                firstFly.position.y,
-                typeof z === 'number' ? z : (Math.random() - 0.5) * 200
-            );
-
-            // Небольшой поворот, чтобы не сливались
+            // Позиция
+            const px = (typeof x === 'number') ? x : base.position.x + (Math.random() - 0.5) * 150;
+            const pz = (typeof z === 'number') ? z : base.position.z + (Math.random() - 0.5) * 150;
+            clone.position.set(px, base.position.y, pz);
             clone.rotation.y = Math.random() * Math.PI * 2;
 
-            // Имя, чтобы потом отличать
-            clone.name = 'fly_' + (flies.length + 1);
+            // Имя
+            clone.name = 'fly_' + (flies.length + 2);
 
-            // Добавляем в сцену
-            scene.add(clone);
+            // Кладём в того же родителя, что и оригинал
+            const parent = base.parent || window.__scene;
+            parent.add(clone);
             flies.push(clone);
 
-            console.log(`🐝 Создана муха #${flies.length} в позиции`, clone.position.toArray());
+            console.log('🐝 Создана муха #' + (flies.length + 1), clone.position.toArray());
             return clone;
         }
 
-        // ---------- 4. Кнопка «Добавить муху» ----------
-        document.getElementById('addFlyBtn').addEventListener('click', () => {
-            const newFly = spawnFly();
-            if (newFly) flashButton('addFlyBtn', '🐝 Добавлено!');
-        });
+        // ---------- Кнопка «Добавить муху» ----------
+        const addBtn = document.getElementById('addFlyBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', function () {
+                const f = spawnFly();
+                if (f) flashButton('addFlyBtn', '🐝 Добавлено!');
+            });
+        }
 
-        // ---------- 5. Кнопка «Размножить» ----------
-        document.getElementById('breedBtn').addEventListener('click', () => {
-            if (flies.length < 2) {
-                alert('Нужно минимум две мухи.\nНажми «🐝 Добавить муху» ещё раз.');
-                return;
-            }
+        // ---------- Кнопка «Размножить» ----------
+        const breedBtn = document.getElementById('breedBtn');
+        if (breedBtn) {
+            breedBtn.addEventListener('click', function () {
+                const base = resolveFly();
+                if (!base) {
+                    alert('Сначала найди муху — нажми «🐝 Добавить муху».');
+                    return;
+                }
+                const all = [base].concat(flies);
+                if (all.length < 2) {
+                    alert('Нужно минимум две мухи. Нажми «🐝 Добавить муху» ещё раз.');
+                    return;
+                }
 
-            // Берём две последние мухи
-            const a = flies[flies.length - 2];
-            const b = flies[flies.length - 1];
+                const a = all[all.length - 2];
+                const b = all[all.length - 1];
 
-            // Если они далеко друг от друга — сдвинем их вместе
-            const dist = a.position.distanceTo(b.position);
-            const MAX_DIST = 80;
-            if (dist > MAX_DIST) {
-                // Подтянем b к a
-                const dir = new THREE.Vector3().subVectors(b.position, a.position).normalize();
-                b.position.copy(a.position).addScaledVector(dir, MAX_DIST * 0.6);
-                console.log('❤️ Мухи сближены для размножения');
-            }
+                // Сближаем, если далеко
+                const dist = a.position.distanceTo(b.position);
+                if (dist > 80) {
+                    const dir = new THREE.Vector3().subVectors(b.position, a.position).normalize();
+                    b.position.copy(a.position).addScaledVector(dir, 60);
+                    console.log('❤️ Мухи сближены для размножения');
+                }
 
-            // Создаём потомка между ними
-            const midX = (a.position.x + b.position.x) / 2 + (Math.random() - 0.5) * 20;
-            const midZ = (a.position.z + b.position.z) / 2 + (Math.random() - 0.5) * 20;
+                // Потомок — между ними
+                const child = spawnFly(
+                    (a.position.x + b.position.x) / 2 + (Math.random() - 0.5) * 20,
+                    (a.position.z + b.position.z) / 2 + (Math.random() - 0.5) * 20
+                );
+                if (child) {
+                    child.scale.setScalar(0.6);
+                    child.name = 'fly_child_' + flies.length;
+                    flashButton('breedBtn', '❤️ Родился малыш!');
+                    console.log('❤️ Всего мух:', 1 + flies.length);
+                }
+            });
+        }
 
-            const child = spawnFly(midX, midZ);
-            if (child) {
-                child.scale.setScalar(0.6); // малыш меньше
-                child.name = 'fly_child_' + flies.length;
-                flashButton('breedBtn', '❤️ Родился малыш!');
-                console.log('❤️ Размножение успешно! Всего мух:', flies.length);
-            }
-        });
-
-        // ---------- 6. Вспомогательное: мигание кнопки ----------
+        // ---------- Мигание кнопки ----------
         function flashButton(id, text) {
             const btn = document.getElementById(id);
             if (!btn) return;
-            const original = btn.textContent;
+            const orig = btn.textContent;
             btn.textContent = text;
             btn.classList.add('active');
-            setTimeout(() => {
-                btn.textContent = original;
+            setTimeout(function () {
+                btn.textContent = orig;
                 btn.classList.remove('active');
             }, 1200);
         }
 
-        // ---------- 7. Обновляем список мух, если сцена нашлась позже ----------
-        // (на случай, если main.js закончит инициализацию после нас)
-        setTimeout(() => {
-            if (!scene && window.__flybrain) {
-                scene    = window.__flybrain.scene;
-                camera   = window.__flybrain.camera;
-                renderer = window.__flybrain.renderer;
-                firstFly = window.__flybrain.fly;
-                if (firstFly && !flies.includes(firstFly)) flies.push(firstFly);
-                console.log('🐝 Сцена подхвачена с задержкой. Мух:', flies.length);
+        // ---------- Проверка готовности ----------
+        setTimeout(function () {
+            if (!window.__scene) {
+                console.warn('🐝 Модуль: сцена так и не появилась. Перехват render() не сработал.');
+            } else {
+                console.log('🐝 Модуль: сцена есть, муха:', window.__fly ? 'найдена' : 'поищем при клике');
             }
-            if (scene && !firstFly) {
-                firstFly = findFly(scene);
-                if (firstFly && !flies.includes(firstFly)) flies.push(firstFly);
-            }
-        }, 2000);
+        }, 3000);
 
-        // ---------- 8. Подсказка в консоли ----------
         console.log(
             '%c✅ Готово.\n' +
-            '🐝 «Добавить муху» — клонирует муху в случайном месте.\n' +
-            '❤️ «Размножить» — создаёт потомка между двумя последними мухами.\n' +
-            'Если не работает — добавь в конец js/main.js:\n' +
-            '    window.__flybrain = { scene, camera, renderer, fly };',
+            '• «🐝 Добавить муху» — клон оригинала\n' +
+            '• «❤️ Размножить» — потомок между двумя последними мухами\n' +
+            'Если в консоли нет "✅ Сцена перехвачена" — перехват не сработал.',
             'color:cyan;font-size:13px'
         );
     })();
