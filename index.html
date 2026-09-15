@@ -20,6 +20,7 @@
             <button class="tool-btn" id="learnBtn">Обучение</button>
             <button class="tool-btn" id="helpBtn">?</button>
             <button class="tool-btn" id="liteBtn">Лёгкий режим</button>
+            <button class="tool-btn" id="grabBtn" title="Схватить муху и перетащить">✋ Схватить</button>
         </div>
         <div class="toolbar-right">
             <span id="claudeStatus" class="claude-status" style="display:none;">
@@ -46,6 +47,7 @@
         <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой, чтобы создать поток воздуха. Длина протяжки = сила ветра.</div>
         <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно. У мухи выражен фототаксис — она тянется к свету.</div>
         <div class="help-item"><strong>Температура</strong> — переключает Нейтрально / Тепло / Холодно. Тепло делает муху активнее и пугливее, холод — исследовательнее.</div>
+        <div class="help-item"><strong>Схватить</strong> — нажмите кнопку, затем тащите муху мышкой. Отпустите — она вернётся к обычному поведению.</div>
     </div>
 
     <div id="left-panel">
@@ -155,5 +157,232 @@
     <script type="text/javascript" src="./js/caretaker-analytics.js?v=17"></script>
     <script type="text/javascript" src="./js/caretaker-calendar.js?v=17"></script>
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
+
+    <!-- ============================================================
+         МЕХАНИКА «СХВАТИТЬ МУХУ И ПЕРЕТАЩИТЬ»
+         Добавлено поверх оригинального проекта, ничего не ломает.
+         ============================================================ -->
+    <script>
+    (function () {
+        'use strict';
+
+        console.log('%c🐝 FlyBrain Drag: инициализация…', 'color:orange;font-weight:bold');
+
+        // --- 1. Находим canvas ---
+        const canvas = document.getElementById('canvas');
+        if (!canvas) {
+            console.error('FlyBrain Drag: canvas #canvas не найден');
+            return;
+        }
+
+        // --- 2. Пытаемся найти сцену, камеру, рендерер и муху ---
+        let scene = null, camera = null, renderer = null, fly = null;
+
+        // 2a. Если main.js оставил ссылки на window.__flybrain — берём оттуда
+        if (window.__flybrain) {
+            scene    = window.__flybrain.scene;
+            camera   = window.__flybrain.camera;
+            renderer = window.__flybrain.renderer;
+            fly      = window.__flybrain.fly;
+            console.log('FlyBrain Drag: ссылки взяты из window.__flybrain');
+        }
+
+        // 2b. Иначе — ищем через глобальные переменные (на случай не-модульного кода)
+        if (!scene)  scene    = window.scene    || (window.THREE && window.THREE.__scene);
+        if (!camera) camera   = window.camera   || (window.THREE && window.THREE.__camera);
+        if (!renderer) renderer = window.renderer || (window.THREE && window.THREE.__renderer);
+
+        // 2c. Если сцена так и не найдена — пробуем найти её через обход
+        //     всех известных Three.js-объектов на странице.
+        if (!scene && window.THREE) {
+            console.warn('FlyBrain Drag: scene не найдена напрямую, пробуем обход…');
+
+            // Ищем любые THREE.Object3D в замыканиях — через прототип
+            // (это эвристика; если не сработает — попросим пользователя
+            //  выставить window.__flybrain вручную).
+            const tryFind = () => {
+                // Иногда проекты вешают renderer на canvas
+                if (canvas.__renderer) {
+                    renderer = canvas.__renderer;
+                    scene    = renderer.__scene;
+                    camera   = renderer.__camera;
+                }
+                // Three.js иногда хранит ссылку на сцену в .userData
+                if (!scene && canvas.__threeScene) scene = canvas.__threeScene;
+                if (!camera && canvas.__threeCamera) camera = canvas.__threeCamera;
+            };
+            tryFind();
+        }
+
+        // --- 3. Если сцена/камера не найдены — просим пользователя помочь ---
+        if (!scene || !camera) {
+            console.warn(
+                '%cFlyBrain Drag: scene/camera не найдены автоматически.\n' +
+                'Открой js/main.js, найди место, где созданы scene и camera,\n' +
+                'и добавь в конце файла:\n\n' +
+                '    window.__flybrain = { scene, camera, renderer, fly };\n\n' +
+                'После обновления страницы drag заработает.',
+                'color:#ff6;background:#300;padding:6px;border-radius:4px'
+            );
+
+            // Всё равно ставим кнопку — она попробует найти сцену ещё раз при клике
+        }
+
+        // --- 4. Ищем муху, если её ещё нет ---
+        function findFly(root) {
+            if (!root) return null;
+            let found = null;
+            root.traverse(function (obj) {
+                if (found) return;
+                const n = (obj.name || '').toLowerCase();
+                if (n.includes('fly') && !n.includes('flybrain')) {
+                    found = obj;
+                }
+            });
+            // Если по имени не нашли — ищем группу с характерными детьми
+            if (!found) {
+                root.traverse(function (obj) {
+                    if (found) return;
+                    if (obj.type === 'Group' && obj.children && obj.children.length >= 3) {
+                        const hasBody = obj.children.some(c =>
+                            (c.name || '').toLowerCase().match(/body|thorax|abdomen|head/));
+                        if (hasBody) found = obj;
+                    }
+                });
+            }
+            return found;
+        }
+
+        if (!fly && scene) fly = findFly(scene);
+        if (fly) console.log('%cFlyBrain Drag: муха найдена →', 'color:lime', fly);
+        else      console.warn('FlyBrain Drag: муха пока не найдена (найдём при захвате)');
+
+        // --- 5. Raycaster и переменные состояния ---
+        const raycaster   = new THREE.Raycaster();
+        const pointer     = new THREE.Vector2();
+        const dragPlane   = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersection = new THREE.Vector3();
+        const offset      = new THREE.Vector3();
+        const originalPos = new THREE.Vector3();
+
+        let grabbing = false;   // включён ли режим «схватить»
+        let dragging = false;   // тащим ли прямо сейчас
+
+        // --- 6. Кнопка «Схватить» ---
+        const grabBtn = document.getElementById('grabBtn');
+        if (grabBtn) {
+            grabBtn.addEventListener('click', function () {
+                grabbing = !grabbing;
+                grabBtn.classList.toggle('active', grabbing);
+                grabBtn.textContent = grabbing ? '✋ Отпустить' : '✋ Схватить';
+                canvas.style.cursor = grabbing ? 'grab' : '';
+                console.log('FlyBrain Drag: режим захвата', grabbing ? 'ВКЛ' : 'ВЫКЛ');
+
+                // При включении режима — ещё раз попробуем найти сцену/муху
+                if (grabbing && (!scene || !fly)) {
+                    if (!scene)  scene  = window.__flybrain && window.__flybrain.scene;
+                    if (!camera) camera = window.__flybrain && window.__flybrain.camera;
+                    if (scene && !fly) fly = findFly(scene);
+                    if (fly) console.log('FlyBrain Drag: муха найдена при включении режима →', fly);
+                }
+            });
+        }
+
+        // --- 7. Вспомогательное: обновить NDC-координаты указателя ---
+        function updatePointer(e) {
+            const rect = canvas.getBoundingClientRect();
+            pointer.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+            pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+        }
+
+        // --- 8. Обработчик pointerdown: пытаемся схватить муху ---
+        canvas.addEventListener('pointerdown', function (e) {
+            if (!grabbing) return;
+            if (!scene || !camera) {
+                console.warn('FlyBrain Drag: нет scene/camera — не могу схватить');
+                return;
+            }
+            if (!fly) fly = findFly(scene);
+            if (!fly) {
+                console.warn('FlyBrain Drag: муха не найдена в сцене');
+                return;
+            }
+
+            updatePointer(e);
+            raycaster.setFromCamera(pointer, camera);
+
+            // Проверяем попадание по мухе и всем её детям
+            const hits = raycaster.intersectObject(fly, true);
+            if (hits.length === 0) return;
+
+            dragging = true;
+            canvas.setPointerCapture(e.pointerId);
+            canvas.style.cursor = 'grabbing';
+
+            // Плоскость, по которой тащим — горизонтальная, на высоте мухи
+            originalPos.copy(fly.position);
+            dragPlane.setFromNormalAndCoplanarPoint(
+                new THREE.Vector3(0, 1, 0),
+                fly.position.clone()
+            );
+
+            // Смещение между точкой клика и центром мухи
+            raycaster.ray.intersectPlane(dragPlane, intersection);
+            offset.copy(intersection).sub(fly.position);
+
+            console.log('FlyBrain Drag: схватили муху', originalPos.toArray());
+        });
+
+        // --- 9. pointermove: тащим муху ---
+        canvas.addEventListener('pointermove', function (e) {
+            if (!dragging) {
+                // Подсветка курсора при наведении в режиме захвата
+                if (grabbing && scene && camera && fly) {
+                    updatePointer(e);
+                    raycaster.setFromCamera(pointer, camera);
+                    const hits = raycaster.intersectObject(fly, true);
+                    canvas.style.cursor = hits.length ? 'grab' : '';
+                }
+                return;
+            }
+
+            updatePointer(e);
+            raycaster.setFromCamera(pointer, camera);
+
+            if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                fly.position.copy(intersection.sub(offset));
+
+                // Если в проекте есть отдельный «мозг» мухи — синхронизируем
+                if (fly.userData && typeof fly.userData.x !== 'undefined') {
+                    fly.userData.x = fly.position.x;
+                    fly.userData.z = fly.position.z;
+                }
+                // Часто логика мухи хранит координаты отдельно
+                if (window.__flybrain && window.__flybrain.flyState) {
+                    window.__flybrain.flyState.x = fly.position.x;
+                    window.__flybrain.flyState.z = fly.position.z;
+                }
+            }
+        });
+
+        // --- 10. pointerup: отпускаем муху ---
+        canvas.addEventListener('pointerup', function (e) {
+            if (!dragging) return;
+            dragging = false;
+            try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+            canvas.style.cursor = grabbing ? 'grab' : '';
+            console.log('FlyBrain Drag: отпустили муху →', fly.position.toArray());
+        });
+
+        // --- 11. Подсказка в консоли ---
+        console.log(
+            '%c✅ FlyBrain Drag готов.\n' +
+            'Нажми кнопку «✋ Схватить» на панели, затем тащи муху мышкой.\n' +
+            'Если не работает — открой js/main.js и добавь в конце:\n' +
+            '    window.__flybrain = { scene, camera, renderer, fly };',
+            'color:cyan;font-size:13px'
+        );
+    })();
+    </script>
 </body>
 </html>
