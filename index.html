@@ -22,6 +22,7 @@
             <button class="tool-btn" id="liteBtn">Лёгкий режим</button>
             <button class="tool-btn" id="addFlyBtn" title="Создать вторую муху">🐝 Добавить муху</button>
             <button class="tool-btn" id="breedBtn" title="Размножить мух">❤️ Размножить</button>
+            <button class="tool-btn" id="spyBtn" title="Отчёт о сущностях и движении">🕵️ Отчёт</button>
         </div>
         <div class="toolbar-right">
             <span id="claudeStatus" class="claude-status" style="display:none;">
@@ -43,13 +44,14 @@
             <span>Руководство по взаимодействию</span>
             <button class="help-close-btn" id="helpCloseBtn">&times;</button>
         </div>
-        <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду. Муха найдёт её и съест, когда проголодается.</div>
-        <div class="help-item"><strong>Прикоснуться</strong> — кликните по мухе, чтобы прикоснуться. Место важно: голова, грудь, брюшко или лапка — каждое вызывает своё поведение ухода. Три и более клика за 4 секунды — болевая реакция.</div>
-        <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой, чтобы создать поток воздуха. Длина протяжки = сила ветра.</div>
-        <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно. У мухи выражен фототаксис — она тянется к свету.</div>
-        <div class="help-item"><strong>Температура</strong> — переключает Нейтрально / Тепло / Холодно. Тепло делает муху активнее и пугливее, холод — исследовательнее.</div>
-        <div class="help-item"><strong>🐝 Добавить муху</strong> — создаёт копию мухи в случайном месте. У каждой свой мозг и поведение.</div>
-        <div class="help-item"><strong>❤️ Размножить</strong> — если рядом две мухи, создаёт новую между ними.</div>
+        <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду.</div>
+        <div class="help-item"><strong>Прикоснуться</strong> — кликните по мухе, чтобы прикоснуться.</div>
+        <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой.</div>
+        <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно.</div>
+        <div class="help-item"><strong>Температура</strong> — Нейтрально / Тепло / Холодно.</div>
+        <div class="help-item"><strong>🐝 Добавить муху</strong> — создаёт копию мухи.</div>
+        <div class="help-item"><strong>❤️ Размножить</strong> — создаёт потомка между двумя мухами.</div>
+        <div class="help-item"><strong>🕵️ Отчёт</strong> — выводит в консоль список сущностей и их движение.</div>
     </div>
 
     <div id="left-panel">
@@ -64,30 +66,12 @@
         </div>
 
         <div id="drive-meters">
-            <div class="drive-row">
-                <span class="drive-label">Состояние</span>
-                <span id="behaviorState" class="behavior-state">покой</span>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Голод</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveHunger"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Страх</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveFear"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Усталость</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveFatigue"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Любопытство</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveCuriosity"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Уход</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveGroom"></div></div>
-            </div>
+            <div class="drive-row"><span class="drive-label">Состояние</span><span id="behaviorState" class="behavior-state">покой</span></div>
+            <div class="drive-row"><span class="drive-label">Голод</span><div class="drive-bar-bg"><div class="drive-bar" id="driveHunger"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Страх</span><div class="drive-bar-bg"><div class="drive-bar" id="driveFear"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Усталость</span><div class="drive-bar-bg"><div class="drive-bar" id="driveFatigue"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Любопытство</span><div class="drive-bar-bg"><div class="drive-bar" id="driveCuriosity"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Уход</span><div class="drive-bar-bg"><div class="drive-bar" id="driveGroom"></div></div></div>
         </div>
     </div>
 
@@ -97,7 +81,6 @@
             <button class="caretaker-sidebar-close" id="caretaker-sidebar-close">&times;</button>
         </div>
         <div class="activity-feed" id="activity-feed-list"></div>
-
         <div class="chat-section" id="chat-section">
             <div class="chat-history" id="chat-history"></div>
             <div class="chat-input-row">
@@ -105,7 +88,6 @@
                 <button class="chat-send-btn" id="chat-send-btn">Отправить</button>
             </div>
         </div>
-
         <div class="analytics-section" id="analytics-section">
             <div class="analytics-section-header">
                 <span class="analytics-section-title">Аналитика</span>
@@ -113,7 +95,6 @@
             </div>
             <div class="analytics-content" id="analytics-content"></div>
         </div>
-
         <div class="calendar-section" id="calendar-section">
             <div class="calendar-section-header">
                 <span class="calendar-section-title">Календарь</span>
@@ -124,7 +105,6 @@
     </div>
 
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
-
     <canvas id='canvas'></canvas>
 
     <div id="zoom-controls" class="zoom-controls">
@@ -143,66 +123,255 @@
     <div id="brain3d-overlay" style="display:none;"></div>
     <div id="brain3d-tooltip" style="display:none;"></div>
 
-    <!-- Three.js v0.128.0 (vendored) — не обновляйте одну библиотеку без другой -->
+    <!-- Three.js -->
     <script src="./js/vendor/three.min.js"></script>
     <script src="./js/vendor/OrbitControls.js"></script>
 
     <!-- ============================================================
-         🪤 ПЕРЕХВАТЧИК RENDER
-         Устанавливается ДО main.js и ловит scene/camera/fly
-         на первом же кадре рендера.
+         🕵️ ПЕРЕХВАТЧИК-ШПИОН
+         Ловит scene/camera через render(), отслеживает движение
+         всех объектов и проверяет «сущность» каждой группы.
          ============================================================ -->
     <script>
     (function () {
         'use strict';
 
         if (!window.THREE || !THREE.WebGLRenderer) {
-            console.warn('🪤 THREE.WebGLRenderer не найден — перехват невозможен');
+            console.warn('🕵️ THREE.WebGLRenderer не найден');
             return;
         }
 
+        // ---------- Состояние шпиона ----------
+        const trackers = new Map();   // obj -> { lastPos: Vector3, lastRot: number, lastScale: number, moved: number, frames: number }
+        const startTime = performance.now();
+        let frameCount = 0;
+        let lastReport = 0;
+
+        const REPORT_INTERVAL_MS = 5000; // авто-отчёт раз в 5 секунд
+        const MOVE_EPSILON = 0.01;       // порог, ниже которого считаем «стоит»
+
+        // ---------- Перехват рендера ----------
         const originalRender = THREE.WebGLRenderer.prototype.render;
-        let loggedScene = false, loggedCamera = false, loggedFly = false;
 
         THREE.WebGLRenderer.prototype.render = function (scene, camera) {
-            // Ловим сцену
             if (!window.__scene) {
                 window.__scene = scene;
-                if (!loggedScene) {
-                    loggedScene = true;
-                    console.log('%c✅ Сцена перехвачена через render()', 'color:lime;font-weight:bold', scene);
-                }
+                console.log('%c✅ Сцена перехвачена', 'color:lime;font-weight:bold', scene);
             }
-            // Ловим камеру
             if (!window.__camera) {
                 window.__camera = camera;
-                if (!loggedCamera) {
-                    loggedCamera = true;
-                    console.log('%c✅ Камера перехвачена через render()', 'color:lime;font-weight:bold', camera);
-                }
+                console.log('%c✅ Камера перехвачена', 'color:lime;font-weight:bold', camera);
             }
-            // Ловим рендерер
             if (!window.__renderer) window.__renderer = this;
 
-            // Пытаемся найти муху — сначала по имени
-            if (!window.__fly && window.__scene) {
-                window.__scene.traverse(function (obj) {
-                    if (window.__fly) return;
-                    const n = (obj.name || '').toLowerCase();
-                    if (n.includes('fly') && !n.includes('flybrain')) {
-                        window.__fly = obj;
-                        if (!loggedFly) {
-                            loggedFly = true;
-                            console.log('%c🐝 Муха найдена по имени:', 'color:lime;font-weight:bold', obj);
-                        }
-                    }
-                });
+            frameCount++;
+
+            // Обновляем трекеры каждый кадр
+            updateTrackers(scene);
+
+            // Авто-отчёт раз в REPORT_INTERVAL_MS
+            const now = performance.now();
+            if (now - lastReport > REPORT_INTERVAL_MS) {
+                lastReport = now;
+                if (window.__spyAutoReport) printReport();
             }
 
             return originalRender.call(this, scene, camera);
         };
 
-        console.log('%c🪤 Перехватчик render() установлен — ждём первый кадр', 'color:cyan;font-weight:bold');
+        // ---------- Обновление трекеров ----------
+        function updateTrackers(scene) {
+            scene.traverse(function (obj) {
+                if (!obj.isObject3D) return;
+
+                let t = trackers.get(obj);
+                if (!t) {
+                    t = {
+                        lastPos: obj.position.clone(),
+                        lastRotY: obj.rotation.y,
+                        lastScale: obj.scale.x,
+                        movedFrames: 0,
+                        totalFrames: 0,
+                        totalDistance: 0,
+                        maxSpeed: 0
+                    };
+                    trackers.set(obj, t);
+                    return;
+                }
+
+                const dx = obj.position.x - t.lastPos.x;
+                const dy = obj.position.y - t.lastPos.y;
+                const dz = obj.position.z - t.lastPos.z;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                const rotDelta = Math.abs(obj.rotation.y - t.lastRotY);
+                const scaleDelta = Math.abs(obj.scale.x - t.lastScale);
+
+                t.totalFrames++;
+                if (dist > MOVE_EPSILON || rotDelta > 0.001 || scaleDelta > 0.001) {
+                    t.movedFrames++;
+                    t.totalDistance += dist;
+                    if (dist > t.maxSpeed) t.maxSpeed = dist;
+                }
+
+                t.lastPos.copy(obj.position);
+                t.lastRotY = obj.rotation.y;
+                t.lastScale = obj.scale.x;
+            });
+        }
+
+        // ---------- Проверка «сущности» ----------
+        // Сущность — это объект, который:
+        //   1. Имеет детей (модель, а не примитив)
+        //   2. Двигается сам (movedFrames / totalFrames > 10%)
+        //   3. Не является камерой/светом/рендерером
+        function classify(obj, t) {
+            if (!obj.isObject3D) return 'не-объект';
+            if (obj.isCamera) return 'камера';
+            if (obj.isLight) return 'свет';
+            if (obj.isScene) return 'сцена';
+
+            const childCount = (obj.children || []).length;
+            const moveRatio = t && t.totalFrames > 0 ? t.movedFrames / t.totalFrames : 0;
+            const name = (obj.name || '').toLowerCase();
+
+            if (/fly|insect|drosophila/.test(name) && !/flybrain/.test(name)) return 'МУХА (по имени)';
+
+            // Признаки живой сущности
+            if (childCount >= 5 && moveRatio > 0.10) return 'СУЩНОСТЬ (двигается)';
+            if (childCount >= 8 && moveRatio > 0.02) return 'сущность (слабо двигается)';
+            if (childCount >= 5)                     return 'модель (стоит)';
+            if (moveRatio > 0.10)                    return 'движется (простое)';
+            if (childCount >= 1)                     return 'группа';
+            return 'примитив';
+        }
+
+        // ---------- Отчёт ----------
+        function printReport() {
+            const scene = window.__scene;
+            if (!scene) {
+                console.warn('🕵️ Сцены ещё нет');
+                return;
+            }
+
+            const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+            const fps = (frameCount / elapsed).toFixed(1);
+
+            console.group(
+                '%c🕵️ ОТЧЁТ ШПИОНА — ' + new Date().toLocaleTimeString(),
+                'color:#4af;font-weight:bold;font-size:14px'
+            );
+            console.log('Время работы: ' + elapsed + 'с, кадров: ' + frameCount + ', FPS: ' + fps);
+
+            // Собираем статистику по всем объектам верхнего уровня
+            const rows = [];
+            scene.children.forEach(function (child) {
+                const t = trackers.get(child);
+                const kind = classify(child, t);
+                let totalDescendants = 0;
+                child.traverse(function () { totalDescendants++; });
+                const moveRatio = t && t.totalFrames > 0
+                    ? ((t.movedFrames / t.totalFrames) * 100).toFixed(1) + '%'
+                    : '—';
+                rows.push({
+                    name: child.name || '(без имени)',
+                    type: child.type,
+                    kind: kind,
+                    children: child.children.length,
+                    descendants: totalDescendants,
+                    moveRatio: moveRatio,
+                    distance: t ? t.totalDistance.toFixed(2) : '0',
+                    speed: t ? t.maxSpeed.toFixed(3) : '0',
+                    obj: child
+                });
+            });
+
+            // Сортируем: сначала СУЩНОСТИ, потом остальные
+            const order = {
+                'МУХА (по имени)': 0,
+                'СУЩНОСТЬ (двигается)': 1,
+                'сущность (слабо двигается)': 2,
+                'модель (стоит)': 3,
+                'движется (простое)': 4,
+                'группа': 5,
+                'примитив': 6,
+                'свет': 7,
+                'камера': 8,
+                'сцена': 9,
+                'не-объект': 10
+            };
+            rows.sort(function (a, b) {
+                return (order[a.kind] || 99) - (order[b.kind] || 99);
+            });
+
+            console.table(rows.map(function (r) {
+                return {
+                    'Имя': r.name,
+                    'Тип': r.type,
+                    'Класс': r.kind,
+                    'Детей': r.children,
+                    'Всего': r.descendants,
+                    'Движ. %': r.moveRatio,
+                    'Путь': r.distance,
+                    'Скор.': r.speed
+                };
+            }));
+
+            // Отдельно — «настоящие сущности»
+            const entities = rows.filter(function (r) {
+                return r.kind === 'МУХА (по имени)' ||
+                       r.kind === 'СУЩНОСТЬ (двигается)' ||
+                       r.kind === 'сущность (слабо двигается)';
+            });
+
+            if (entities.length > 0) {
+                console.log('%c🎯 НАЙДЕННЫЕ СУЩНОСТИ:', 'color:lime;font-weight:bold');
+                entities.forEach(function (e) {
+                    console.log('  •', e.name, '→', e.kind, '| путь:', e.distance, '| движ.:', e.moveRatio, e.obj);
+                });
+                // Автоматически делаем «главной» самую активную
+                const top = entities[0];
+                if (!window.__fly || window.__fly !== top.obj) {
+                    window.__fly = top.obj;
+                    console.log('%c🐝 Главная сущность установлена:', 'color:lime;font-weight:bold', top.name, top.obj);
+                }
+            } else {
+                console.warn('🕵️ Сущности не найдены. Проверь трекеры:');
+                trackers.forEach(function (t, obj) {
+                    if (t.totalFrames > 0 && t.movedFrames / t.totalFrames > 0.05) {
+                        console.log('  кандидат:', obj.name || obj.type, obj);
+                    }
+                });
+            }
+
+            console.groupEnd();
+            return rows;
+        }
+
+        // ---------- Внешний API ----------
+        window.__spy = {
+            report: printReport,
+            autoReport: function (on) {
+                window.__spyAutoReport = !!on;
+                console.log('🕵️ Авто-отчёт:', window.__spyAutoReport ? 'ВКЛ (раз в 5с)' : 'ВЫКЛ');
+            },
+            trackers: trackers,
+            getScene: function () { return window.__scene; },
+            getFly: function () { return window.__fly; },
+            reset: function () {
+                trackers.clear();
+                frameCount = 0;
+                console.log('🕵️ Трекеры сброшены');
+            }
+        };
+
+        console.log(
+            '%c🕵️ Шпион установлен.\n' +
+            '• window.__spy.report() — отчёт сейчас\n' +
+            '• window.__spy.autoReport(true) — авто-отчёт раз в 5 сек\n' +
+            '• window.__spy.trackers — карта всех объектов\n' +
+            '• window.__spy.getFly() — текущая «главная» сущность',
+            'color:cyan;font-weight:bold'
+        );
     })();
     </script>
 
@@ -221,52 +390,14 @@
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         🐝 МОДУЛЬ ДОБАВЛЕНИЯ МУХ И РАЗМНОЖЕНИЯ
-         Работает с window.__scene / __camera / __fly,
-         которые заполнил перехватчик выше.
+         🐝 МОДУЛЬ РАЗМНОЖЕНИЯ — работает с window.__fly / __scene
          ============================================================ -->
     <script>
     (function () {
         'use strict';
 
-        console.log('%c🐝 Модуль размножения мух: инициализация…', 'color:orange;font-weight:bold');
-
-        const flies = [];      // все созданные/найденные клоны
-        let baseline = null;   // оригинальная муха
-
-        // ---------- Ищем муху-кандидата ----------
-        function isLikelyFly(obj) {
-            if (!obj || !obj.isObject3D) return false;
-            // Признак: много детей (меши тела, лапки, крылья, глаза)
-            const childCount = (obj.children || []).length;
-            if (childCount < 3) return false;
-            // Признак: имя содержит fly/insect/drosophila
-            const n = (obj.name || '').toLowerCase();
-            if (/fly|insect|drosophila/.test(n) && !/flybrain/.test(n)) return true;
-            // Признак: у детей есть имена с body/head/thorax/wing/leg
-            const hasAnatomy = obj.children.some(function (c) {
-                return /body|head|thorax|abdomen|wing|leg|antenna|eye/.test(
-                    (c.name || '').toLowerCase()
-                );
-            });
-            return hasAnatomy;
-        }
-
-        function findFlyCandidates(root) {
-            if (!root) return [];
-            const candidates = [];
-            root.traverse(function (obj) {
-                if (isLikelyFly(obj)) {
-                    // Считаем глубину/размер, чтобы выбрать самого крупного
-                    let total = 0;
-                    obj.traverse(function () { total++; });
-                    candidates.push({ obj: obj, size: total });
-                }
-            });
-            // Сортируем по размеру — самая крупная группа вверху
-            candidates.sort(function (a, b) { return b.size - a.size; });
-            return candidates;
-        }
+        const flies = [];
+        let baseline = null;
 
         function resolveFly() {
             if (baseline) return baseline;
@@ -275,146 +406,106 @@
             const scene = window.__scene;
             if (!scene) return null;
 
-            const candidates = findFlyCandidates(scene);
-            if (candidates.length === 0) return null;
+            // Ищем по имени fly
+            scene.traverse(function (o) {
+                if (baseline) return;
+                const n = (o.name || '').toLowerCase();
+                if (n.includes('fly') && !n.includes('flybrain')) baseline = o;
+            });
 
-            console.log('🎯 Кандидаты в мухи:', candidates.map(function (c) {
-                return c.obj.name + ' (' + c.size + ')';
-            }));
+            // Или через шпиона
+            if (!baseline && window.__spy) {
+                window.__spy.report();
+                baseline = window.__fly || null;
+            }
 
-            baseline = candidates[0].obj;
-            window.__fly = baseline;
-            console.log('%c🐝 Муха выбрана автоматически:', 'color:lime;font-weight:bold', baseline);
             return baseline;
         }
 
-        // ---------- Клонирование ----------
         function spawnFly(x, z) {
             const base = resolveFly();
             if (!base) {
-                alert('Муха не найдена.\n\n' +
-                      'Открой консоль (F12) и проверь:\n' +
-                      '  window.__scene — есть?\n' +
-                      '  window.__fly — есть?\n' +
-                      'Если нет — перехват render() не сработал.');
+                alert('Муха не найдена.\n\nОткрой консоль (F12) и нажми кнопку «🕵️ Отчёт» —\n' +
+                      'посмотри, что показывает шпион.\n\nЕсли сущностей нет — перехват не сработал.');
                 return null;
             }
-
             let clone;
-            try {
-                clone = base.clone(true);
-            } catch (e) {
-                console.error('Ошибка клонирования:', e);
-                return null;
-            }
+            try { clone = base.clone(true); }
+            catch (e) { console.error('Ошибка клонирования:', e); return null; }
 
-            // Отвязываем материалы, чтобы мухи не делили цвет
             clone.traverse(function (o) {
                 if (o.material) {
-                    if (Array.isArray(o.material)) {
-                        o.material = o.material.map(function (m) { return m.clone(); });
-                    } else {
-                        o.material = o.material.clone();
-                    }
+                    if (Array.isArray(o.material)) o.material = o.material.map(function (m) { return m.clone(); });
+                    else o.material = o.material.clone();
                 }
             });
 
-            // Позиция
             const px = (typeof x === 'number') ? x : base.position.x + (Math.random() - 0.5) * 150;
             const pz = (typeof z === 'number') ? z : base.position.z + (Math.random() - 0.5) * 150;
             clone.position.set(px, base.position.y, pz);
             clone.rotation.y = Math.random() * Math.PI * 2;
-
-            // Имя
             clone.name = 'fly_' + (flies.length + 2);
 
-            // Кладём в того же родителя, что и оригинал
             const parent = base.parent || window.__scene;
             parent.add(clone);
             flies.push(clone);
-
             console.log('🐝 Создана муха #' + (flies.length + 1), clone.position.toArray());
             return clone;
         }
 
-        // ---------- Кнопка «Добавить муху» ----------
         const addBtn = document.getElementById('addFlyBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', function () {
-                const f = spawnFly();
-                if (f) flashButton('addFlyBtn', '🐝 Добавлено!');
-            });
-        }
+        if (addBtn) addBtn.addEventListener('click', function () {
+            if (spawnFly()) flash('addFlyBtn', '🐝 Добавлено!');
+        });
 
-        // ---------- Кнопка «Размножить» ----------
         const breedBtn = document.getElementById('breedBtn');
-        if (breedBtn) {
-            breedBtn.addEventListener('click', function () {
-                const base = resolveFly();
-                if (!base) {
-                    alert('Сначала найди муху — нажми «🐝 Добавить муху».');
-                    return;
-                }
-                const all = [base].concat(flies);
-                if (all.length < 2) {
-                    alert('Нужно минимум две мухи. Нажми «🐝 Добавить муху» ещё раз.');
-                    return;
-                }
-
-                const a = all[all.length - 2];
-                const b = all[all.length - 1];
-
-                // Сближаем, если далеко
-                const dist = a.position.distanceTo(b.position);
-                if (dist > 80) {
-                    const dir = new THREE.Vector3().subVectors(b.position, a.position).normalize();
-                    b.position.copy(a.position).addScaledVector(dir, 60);
-                    console.log('❤️ Мухи сближены для размножения');
-                }
-
-                // Потомок — между ними
-                const child = spawnFly(
-                    (a.position.x + b.position.x) / 2 + (Math.random() - 0.5) * 20,
-                    (a.position.z + b.position.z) / 2 + (Math.random() - 0.5) * 20
-                );
-                if (child) {
-                    child.scale.setScalar(0.6);
-                    child.name = 'fly_child_' + flies.length;
-                    flashButton('breedBtn', '❤️ Родился малыш!');
-                    console.log('❤️ Всего мух:', 1 + flies.length);
-                }
-            });
-        }
-
-        // ---------- Мигание кнопки ----------
-        function flashButton(id, text) {
-            const btn = document.getElementById(id);
-            if (!btn) return;
-            const orig = btn.textContent;
-            btn.textContent = text;
-            btn.classList.add('active');
-            setTimeout(function () {
-                btn.textContent = orig;
-                btn.classList.remove('active');
-            }, 1200);
-        }
-
-        // ---------- Проверка готовности ----------
-        setTimeout(function () {
-            if (!window.__scene) {
-                console.warn('🐝 Модуль: сцена так и не появилась. Перехват render() не сработал.');
-            } else {
-                console.log('🐝 Модуль: сцена есть, муха:', window.__fly ? 'найдена' : 'поищем при клике');
+        if (breedBtn) breedBtn.addEventListener('click', function () {
+            const base = resolveFly();
+            if (!base) { alert('Сначала найди муху.'); return; }
+            const all = [base].concat(flies);
+            if (all.length < 2) { alert('Нужно минимум две мухи.'); return; }
+            const a = all[all.length - 2], b = all[all.length - 1];
+            const dist = a.position.distanceTo(b.position);
+            if (dist > 80) {
+                const dir = new THREE.Vector3().subVectors(b.position, a.position).normalize();
+                b.position.copy(a.position).addScaledVector(dir, 60);
             }
-        }, 3000);
+            const child = spawnFly(
+                (a.position.x + b.position.x) / 2 + (Math.random() - 0.5) * 20,
+                (a.position.z + b.position.z) / 2 + (Math.random() - 0.5) * 20
+            );
+            if (child) {
+                child.scale.setScalar(0.6);
+                child.name = 'fly_child_' + flies.length;
+                flash('breedBtn', '❤️ Родился малыш!');
+            }
+        });
 
-        console.log(
-            '%c✅ Готово.\n' +
-            '• «🐝 Добавить муху» — клон оригинала\n' +
-            '• «❤️ Размножить» — потомок между двумя последними мухами\n' +
-            'Если в консоли нет "✅ Сцена перехвачена" — перехват не сработал.',
-            'color:cyan;font-size:13px'
-        );
+        function flash(id, text) {
+            const b = document.getElementById(id);
+            if (!b) return;
+            const o = b.textContent;
+            b.textContent = text;
+            b.classList.add('active');
+            setTimeout(function () { b.textContent = o; b.classList.remove('active'); }, 1200);
+        }
+
+        console.log('🐝 Модуль размножения готов.');
+    })();
+    </script>
+
+    <!-- Кнопка «Отчёт» — подключаемся к шпиону -->
+    <script>
+    (function () {
+        const btn = document.getElementById('spyBtn');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            if (window.__spy && window.__spy.report) {
+                window.__spy.report();
+            } else {
+                alert('Шпион не запущен — перехват render() не сработал.');
+            }
+        });
     })();
     </script>
 </body>
