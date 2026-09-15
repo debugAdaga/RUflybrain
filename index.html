@@ -4,6 +4,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Мозг мухи</title>
     <link rel="stylesheet" type="text/css" href="./css/main.css?v=17">
+    <style>
+        /* === Стили для новых фич === */
+        #extra-panel {
+            position: fixed;
+            top: 60px;
+            left: 12px;
+            z-index: 9999;
+            background: rgba(20, 20, 30, 0.9);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            color: #eee;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 220px;
+        }
+        #extra-panel h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            color: #8cf;
+            font-weight: 600;
+        }
+        #extra-panel button {
+            display: block;
+            width: 100%;
+            margin: 4px 0;
+            padding: 6px 8px;
+            background: #2a2a3a;
+            color: #eee;
+            border: 1px solid #444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: left;
+            transition: background 0.15s;
+        }
+        #extra-panel button:hover { background: #3a3a4f; }
+        #extra-panel button.active {
+            background: #2b6cb0;
+            border-color: #63b3ed;
+        }
+        #extra-panel .hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 6px;
+            line-height: 1.3;
+        }
+
+        /* Оверлей для выделения области */
+        #selection-rect {
+            position: fixed;
+            border: 2px dashed #4af;
+            background: rgba(68, 170, 255, 0.15);
+            pointer-events: none;
+            z-index: 8888;
+            display: none;
+        }
+        #selection-rect.water {
+            border-color: #4cf;
+            background: rgba(80, 200, 255, 0.2);
+        }
+        #selection-rect.erase {
+            border-color: #f66;
+            background: rgba(255, 100, 100, 0.2);
+        }
+
+        /* Визуальные метки воды */
+        .water-marker {
+            position: fixed;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #aef, #28a);
+            box-shadow: 0 0 8px #4cf;
+            pointer-events: none;
+            z-index: 7777;
+            transform: translate(-50%, -50%);
+        }
+    </style>
 </head>
 
 <body>
@@ -20,7 +100,6 @@
             <button class="tool-btn" id="learnBtn">Обучение</button>
             <button class="tool-btn" id="helpBtn">?</button>
             <button class="tool-btn" id="liteBtn">Лёгкий режим</button>
-            <button class="tool-btn" id="grabBtn" title="Схватить муху и перетащить">✋ Схватить</button>
         </div>
         <div class="toolbar-right">
             <span id="claudeStatus" class="claude-status" style="display:none;">
@@ -37,17 +116,41 @@
         </div>
     </div>
 
+    <!-- ============================================
+         НОВАЯ ПАНЕЛЬ ЭКСПЕРИМЕНТОВ
+         ============================================ -->
+    <div id="extra-panel">
+        <h4>🧪 Эксперименты</h4>
+
+        <button id="btnClearAll">🧹 Очистить всё</button>
+        <button id="btnFeedAll">🍎 Еда везде</button>
+        <button id="btnFeedRandom">🎲 Еда в 10 точках</button>
+
+        <h4 style="margin-top:10px;">🟦 Выделить область</h4>
+        <button id="btnSelectFeed">🟩 Заполнить едой</button>
+        <button id="btnSelectErase">🟥 Стереть еду</button>
+        <button id="btnSelectWater">💧 Налить воду</button>
+        <button id="btnSelectCancel">✖️ Отмена выделения</button>
+
+        <h4 style="margin-top:10px;">💧 Вода</h4>
+        <button id="btnWaterMode">💧 Режим воды: ВЫКЛ</button>
+        <button id="btnClearWater">🧽 Убрать всю воду</button>
+
+        <div class="hint" id="extra-hint">Выбери инструмент и работай мышкой по холсту.</div>
+    </div>
+
+    <div id="selection-rect"></div>
+
     <div id="helpOverlay" class="help-overlay" style="display:none;">
         <div class="help-overlay-header">
             <span>Руководство по взаимодействию</span>
             <button class="help-close-btn" id="helpCloseBtn">&times;</button>
         </div>
-        <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду. Муха найдёт её и съест, когда проголодается.</div>
-        <div class="help-item"><strong>Прикоснуться</strong> — кликните по мухе, чтобы прикоснуться. Место важно: голова, грудь, брюшко или лапка — каждое вызывает своё поведение ухода. Три и более клика за 4 секунды — болевая реакция.</div>
-        <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой, чтобы создать поток воздуха. Длина протяжки = сила ветра.</div>
-        <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно. У мухи выражен фототаксис — она тянется к свету.</div>
-        <div class="help-item"><strong>Температура</strong> — переключает Нейтрально / Тепло / Холодно. Тепло делает муху активнее и пугливее, холод — исследовательнее.</div>
-        <div class="help-item"><strong>Схватить</strong> — нажмите кнопку, затем тащите муху мышкой. Отпустите — она вернётся к обычному поведению.</div>
+        <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду.</div>
+        <div class="help-item"><strong>Прикоснуться</strong> — кликните по мухе, чтобы прикоснуться.</div>
+        <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой.</div>
+        <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно.</div>
+        <div class="help-item"><strong>Температура</strong> — Нейтрально / Тепло / Холодно.</div>
     </div>
 
     <div id="left-panel">
@@ -62,30 +165,12 @@
         </div>
 
         <div id="drive-meters">
-            <div class="drive-row">
-                <span class="drive-label">Состояние</span>
-                <span id="behaviorState" class="behavior-state">покой</span>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Голод</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveHunger"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Страх</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveFear"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Усталость</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveFatigue"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Любопытство</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveCuriosity"></div></div>
-            </div>
-            <div class="drive-row">
-                <span class="drive-label">Уход</span>
-                <div class="drive-bar-bg"><div class="drive-bar" id="driveGroom"></div></div>
-            </div>
+            <div class="drive-row"><span class="drive-label">Состояние</span><span id="behaviorState" class="behavior-state">покой</span></div>
+            <div class="drive-row"><span class="drive-label">Голод</span><div class="drive-bar-bg"><div class="drive-bar" id="driveHunger"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Страх</span><div class="drive-bar-bg"><div class="drive-bar" id="driveFear"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Усталость</span><div class="drive-bar-bg"><div class="drive-bar" id="driveFatigue"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Любопытство</span><div class="drive-bar-bg"><div class="drive-bar" id="driveCuriosity"></div></div></div>
+            <div class="drive-row"><span class="drive-label">Уход</span><div class="drive-bar-bg"><div class="drive-bar" id="driveGroom"></div></div></div>
         </div>
     </div>
 
@@ -95,7 +180,6 @@
             <button class="caretaker-sidebar-close" id="caretaker-sidebar-close">&times;</button>
         </div>
         <div class="activity-feed" id="activity-feed-list"></div>
-
         <div class="chat-section" id="chat-section">
             <div class="chat-history" id="chat-history"></div>
             <div class="chat-input-row">
@@ -103,7 +187,6 @@
                 <button class="chat-send-btn" id="chat-send-btn">Отправить</button>
             </div>
         </div>
-
         <div class="analytics-section" id="analytics-section">
             <div class="analytics-section-header">
                 <span class="analytics-section-title">Аналитика</span>
@@ -111,7 +194,6 @@
             </div>
             <div class="analytics-content" id="analytics-content"></div>
         </div>
-
         <div class="calendar-section" id="calendar-section">
             <div class="calendar-section-header">
                 <span class="calendar-section-title">Календарь</span>
@@ -122,7 +204,6 @@
     </div>
 
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
-
     <canvas id='canvas'></canvas>
 
     <div id="zoom-controls" class="zoom-controls">
@@ -141,7 +222,7 @@
     <div id="brain3d-overlay" style="display:none;"></div>
     <div id="brain3d-tooltip" style="display:none;"></div>
 
-    <!-- Three.js v0.128.0 (vendored) — не обновляйте одну библиотеку без другой -->
+    <!-- Оригинальные скрипты -->
     <script src="./js/vendor/three.min.js"></script>
     <script src="./js/vendor/OrbitControls.js"></script>
     <script type="text/javascript" src="./js/constants.js?v=17"></script>
@@ -158,230 +239,218 @@
     <script type="text/javascript" src="./js/caretaker-calendar.js?v=17"></script>
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
-    <!-- ============================================================
-         МЕХАНИКА «СХВАТИТЬ МУХУ И ПЕРЕТАЩИТЬ»
-         Добавлено поверх оригинального проекта, ничего не ломает.
-         ============================================================ -->
+    <!-- ============================================
+         НОВАЯ ЛОГИКА ЭКСПЕРИМЕНТОВ
+         ============================================ -->
     <script>
     (function () {
         'use strict';
 
-        console.log('%c🐝 FlyBrain Drag: инициализация…', 'color:orange;font-weight:bold');
-
-        // --- 1. Находим canvas ---
         const canvas = document.getElementById('canvas');
-        if (!canvas) {
-            console.error('FlyBrain Drag: canvas #canvas не найден');
-            return;
-        }
+        if (!canvas) { console.error('Нет #canvas'); return; }
 
-        // --- 2. Пытаемся найти сцену, камеру, рендерер и муху ---
-        let scene = null, camera = null, renderer = null, fly = null;
-
-        // 2a. Если main.js оставил ссылки на window.__flybrain — берём оттуда
-        if (window.__flybrain) {
-            scene    = window.__flybrain.scene;
-            camera   = window.__flybrain.camera;
-            renderer = window.__flybrain.renderer;
-            fly      = window.__flybrain.fly;
-            console.log('FlyBrain Drag: ссылки взяты из window.__flybrain');
-        }
-
-        // 2b. Иначе — ищем через глобальные переменные (на случай не-модульного кода)
-        if (!scene)  scene    = window.scene    || (window.THREE && window.THREE.__scene);
-        if (!camera) camera   = window.camera   || (window.THREE && window.THREE.__camera);
-        if (!renderer) renderer = window.renderer || (window.THREE && window.THREE.__renderer);
-
-        // 2c. Если сцена так и не найдена — пробуем найти её через обход
-        //     всех известных Three.js-объектов на странице.
-        if (!scene && window.THREE) {
-            console.warn('FlyBrain Drag: scene не найдена напрямую, пробуем обход…');
-
-            // Ищем любые THREE.Object3D в замыканиях — через прототип
-            // (это эвристика; если не сработает — попросим пользователя
-            //  выставить window.__flybrain вручную).
-            const tryFind = () => {
-                // Иногда проекты вешают renderer на canvas
-                if (canvas.__renderer) {
-                    renderer = canvas.__renderer;
-                    scene    = renderer.__scene;
-                    camera   = renderer.__camera;
-                }
-                // Three.js иногда хранит ссылку на сцену в .userData
-                if (!scene && canvas.__threeScene) scene = canvas.__threeScene;
-                if (!camera && canvas.__threeCamera) camera = canvas.__threeCamera;
+        // ---------- Утилиты ----------
+        // Отправляем синтетический клик по canvas в заданной точке экрана
+        function clickAt(x, y, tool) {
+            // Убедимся, что активен нужный инструмент
+            if (tool) {
+                const btn = document.querySelector(`.tool-btn[data-tool="${tool}"]`);
+                if (btn && !btn.classList.contains('active')) btn.click();
+            }
+            const opts = {
+                bubbles: true, cancelable: true, view: window,
+                clientX: x, clientY: y, button: 0, buttons: 1
             };
-            tryFind();
+            canvas.dispatchEvent(new PointerEvent('pointerdown', opts));
+            canvas.dispatchEvent(new PointerEvent('pointerup', opts));
+            canvas.dispatchEvent(new MouseEvent('click', opts));
         }
 
-        // --- 3. Если сцена/камера не найдены — просим пользователя помочь ---
-        if (!scene || !camera) {
-            console.warn(
-                '%cFlyBrain Drag: scene/camera не найдены автоматически.\n' +
-                'Открой js/main.js, найди место, где созданы scene и camera,\n' +
-                'и добавь в конце файла:\n\n' +
-                '    window.__flybrain = { scene, camera, renderer, fly };\n\n' +
-                'После обновления страницы drag заработает.',
-                'color:#ff6;background:#300;padding:6px;border-radius:4px'
-            );
+        // Границы canvas на экране
+        function canvasRect() { return canvas.getBoundingClientRect(); }
 
-            // Всё равно ставим кнопку — она попробует найти сцену ещё раз при клике
-        }
+        // ---------- Кнопка: очистить всё ----------
+        document.getElementById('btnClearAll').addEventListener('click', () => {
+            const clearBtn = document.getElementById('clearButton');
+            if (clearBtn) { clearBtn.click(); console.log('🧹 Очистка вызвана'); }
+            else {
+                // Резерв: очистить воду и метки
+                document.querySelectorAll('.water-marker').forEach(m => m.remove());
+            }
+            setHint('🧹 Сцена очищена.');
+        });
 
-        // --- 4. Ищем муху, если её ещё нет ---
-        function findFly(root) {
-            if (!root) return null;
-            let found = null;
-            root.traverse(function (obj) {
-                if (found) return;
-                const n = (obj.name || '').toLowerCase();
-                if (n.includes('fly') && !n.includes('flybrain')) {
-                    found = obj;
+        // ---------- Кнопка: еда везде (сетка по canvas) ----------
+        document.getElementById('btnFeedAll').addEventListener('click', () => {
+            const r = canvasRect();
+            const stepX = Math.max(40, r.width  / 12);
+            const stepY = Math.max(40, r.height / 8);
+            let count = 0;
+            for (let y = r.top + stepY; y < r.bottom; y += stepY) {
+                for (let x = r.left + stepX; x < r.right; x += stepX) {
+                    clickAt(x, y, 'feed');
+                    count++;
                 }
-            });
-            // Если по имени не нашли — ищем группу с характерными детьми
-            if (!found) {
-                root.traverse(function (obj) {
-                    if (found) return;
-                    if (obj.type === 'Group' && obj.children && obj.children.length >= 3) {
-                        const hasBody = obj.children.some(c =>
-                            (c.name || '').toLowerCase().match(/body|thorax|abdomen|head/));
-                        if (hasBody) found = obj;
+            }
+            setHint(`🍎 Еда размещена в ${count} точках.`);
+        });
+
+        // ---------- Кнопка: еда в 10 случайных точках ----------
+        document.getElementById('btnFeedRandom').addEventListener('click', () => {
+            const r = canvasRect();
+            for (let i = 0; i < 10; i++) {
+                const x = r.left + Math.random() * r.width;
+                const y = r.top  + Math.random() * r.height;
+                clickAt(x, y, 'feed');
+            }
+            setHint('🎲 Еда разбросана в 10 точках.');
+        });
+
+        // ---------- Режим «вода» ----------
+        let waterMode = false;
+        const waterBtn = document.getElementById('btnWaterMode');
+        waterBtn.addEventListener('click', () => {
+            waterMode = !waterMode;
+            waterBtn.classList.toggle('active', waterMode);
+            waterBtn.textContent = waterMode ? '💧 Режим воды: ВКЛ' : '💧 Режим воды: ВЫКЛ';
+            setHint(waterMode
+                ? '💧 Клик по холсту — поставить каплю воды.'
+                : 'Режим воды выключен.');
+        });
+
+        // Ставим каплю воды (визуальную) по клику
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!waterMode) return;
+            const marker = document.createElement('div');
+            marker.className = 'water-marker';
+            marker.style.left = e.clientX + 'px';
+            marker.style.top  = e.clientY + 'px';
+            document.body.appendChild(marker);
+            // Даём мухе стимул «вода» через тот же feed-инструмент,
+            // чтобы поведение как-то отреагировало (при желании убери).
+            const feedBtn = document.querySelector('.tool-btn[data-tool="feed"]');
+            if (feedBtn && !feedBtn.classList.contains('active')) feedBtn.click();
+        });
+
+        document.getElementById('btnClearWater').addEventListener('click', () => {
+            document.querySelectorAll('.water-marker').forEach(m => m.remove());
+            setHint('🧽 Вся вода убрана.');
+        });
+
+        // ---------- Выделение области ----------
+        const selRect = document.getElementById('selection-rect');
+        let selecting = false;
+        let selMode  = null; // 'feed' | 'erase' | 'water'
+        let startX = 0, startY = 0;
+
+        function beginSelect(mode, label) {
+            selMode = mode;
+            selecting = false;
+            selRect.className = mode;
+            setHint(`Выдели область мышкой: ${label}. Отпусти — применится.`);
+            canvas.style.cursor = 'crosshair';
+        }
+
+        document.getElementById('btnSelectFeed').addEventListener('click', () => beginSelect('feed',  'заполнить едой'));
+        document.getElementById('btnSelectErase').addEventListener('click', () => beginSelect('erase', 'стереть еду'));
+        document.getElementById('btnSelectWater').addEventListener('click', () => beginSelect('water', 'налить воду'));
+
+        document.getElementById('btnSelectCancel').addEventListener('click', () => {
+            selecting = false; selMode = null;
+            selRect.style.display = 'none';
+            canvas.style.cursor = '';
+            setHint('✖️ Выделение отменено.');
+        });
+
+        // Начинаем рисовать прямоугольник
+        document.addEventListener('pointerdown', (e) => {
+            if (!selMode) return;
+            if (e.target !== canvas) return;
+            selecting = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            selRect.style.left   = startX + 'px';
+            selRect.style.top    = startY + 'px';
+            selRect.style.width  = '0px';
+            selRect.style.height = '0px';
+            selRect.style.display = 'block';
+        });
+
+        // Растягиваем прямоугольник
+        document.addEventListener('pointermove', (e) => {
+            if (!selecting) return;
+            const x = Math.min(e.clientX, startX);
+            const y = Math.min(e.clientY, startY);
+            const w = Math.abs(e.clientX - startX);
+            const h = Math.abs(e.clientY - startY);
+            selRect.style.left   = x + 'px';
+            selRect.style.top    = y + 'px';
+            selRect.style.width  = w + 'px';
+            selRect.style.height = h + 'px';
+        });
+
+        // Применяем действие по отпусканию
+        document.addEventListener('pointerup', (e) => {
+            if (!selecting) return;
+            selecting = false;
+            const r = selRect.getBoundingClientRect();
+            selRect.style.display = 'none';
+            canvas.style.cursor = '';
+
+            if (r.width < 5 || r.height < 5) {
+                setHint('Слишком маленькая область — пропущено.');
+                selMode = null;
+                return;
+            }
+
+            if (selMode === 'feed') {
+                const stepX = Math.max(30, r.width  / 8);
+                const stepY = Math.max(30, r.height / 6);
+                let count = 0;
+                for (let y = r.top + stepY; y < r.bottom; y += stepY) {
+                    for (let x = r.left + stepX; x < r.right; x += stepX) {
+                        clickAt(x, y, 'feed');
+                        count++;
                     }
+                }
+                setHint(`🟩 Область заполнена едой (${count} точек).`);
+            }
+            else if (selMode === 'erase') {
+                // Стираем только воду и метки; полноценно еду из Three.js
+                // без доступа к сцене не убрать — используем clearButton.
+                document.querySelectorAll('.water-marker').forEach(m => {
+                    const mx = parseFloat(m.style.left);
+                    const my = parseFloat(m.style.top);
+                    if (mx >= r.left && mx <= r.right && my >= r.top && my <= r.bottom) m.remove();
                 });
+                setHint('🟥 Вода в области стёрта. (Еду удаляет кнопка «Очистить всё».)');
             }
-            return found;
-        }
-
-        if (!fly && scene) fly = findFly(scene);
-        if (fly) console.log('%cFlyBrain Drag: муха найдена →', 'color:lime', fly);
-        else      console.warn('FlyBrain Drag: муха пока не найдена (найдём при захвате)');
-
-        // --- 5. Raycaster и переменные состояния ---
-        const raycaster   = new THREE.Raycaster();
-        const pointer     = new THREE.Vector2();
-        const dragPlane   = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const intersection = new THREE.Vector3();
-        const offset      = new THREE.Vector3();
-        const originalPos = new THREE.Vector3();
-
-        let grabbing = false;   // включён ли режим «схватить»
-        let dragging = false;   // тащим ли прямо сейчас
-
-        // --- 6. Кнопка «Схватить» ---
-        const grabBtn = document.getElementById('grabBtn');
-        if (grabBtn) {
-            grabBtn.addEventListener('click', function () {
-                grabbing = !grabbing;
-                grabBtn.classList.toggle('active', grabbing);
-                grabBtn.textContent = grabbing ? '✋ Отпустить' : '✋ Схватить';
-                canvas.style.cursor = grabbing ? 'grab' : '';
-                console.log('FlyBrain Drag: режим захвата', grabbing ? 'ВКЛ' : 'ВЫКЛ');
-
-                // При включении режима — ещё раз попробуем найти сцену/муху
-                if (grabbing && (!scene || !fly)) {
-                    if (!scene)  scene  = window.__flybrain && window.__flybrain.scene;
-                    if (!camera) camera = window.__flybrain && window.__flybrain.camera;
-                    if (scene && !fly) fly = findFly(scene);
-                    if (fly) console.log('FlyBrain Drag: муха найдена при включении режима →', fly);
+            else if (selMode === 'water') {
+                const stepX = Math.max(25, r.width  / 10);
+                const stepY = Math.max(25, r.height / 8);
+                for (let y = r.top + stepY; y < r.bottom; y += stepY) {
+                    for (let x = r.left + stepX; x < r.right; x += stepX) {
+                        const marker = document.createElement('div');
+                        marker.className = 'water-marker';
+                        marker.style.left = x + 'px';
+                        marker.style.top  = y + 'px';
+                        document.body.appendChild(marker);
+                    }
                 }
-            });
-        }
-
-        // --- 7. Вспомогательное: обновить NDC-координаты указателя ---
-        function updatePointer(e) {
-            const rect = canvas.getBoundingClientRect();
-            pointer.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-            pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-        }
-
-        // --- 8. Обработчик pointerdown: пытаемся схватить муху ---
-        canvas.addEventListener('pointerdown', function (e) {
-            if (!grabbing) return;
-            if (!scene || !camera) {
-                console.warn('FlyBrain Drag: нет scene/camera — не могу схватить');
-                return;
-            }
-            if (!fly) fly = findFly(scene);
-            if (!fly) {
-                console.warn('FlyBrain Drag: муха не найдена в сцене');
-                return;
+                setHint('💧 Область залита водой.');
             }
 
-            updatePointer(e);
-            raycaster.setFromCamera(pointer, camera);
-
-            // Проверяем попадание по мухе и всем её детям
-            const hits = raycaster.intersectObject(fly, true);
-            if (hits.length === 0) return;
-
-            dragging = true;
-            canvas.setPointerCapture(e.pointerId);
-            canvas.style.cursor = 'grabbing';
-
-            // Плоскость, по которой тащим — горизонтальная, на высоте мухи
-            originalPos.copy(fly.position);
-            dragPlane.setFromNormalAndCoplanarPoint(
-                new THREE.Vector3(0, 1, 0),
-                fly.position.clone()
-            );
-
-            // Смещение между точкой клика и центром мухи
-            raycaster.ray.intersectPlane(dragPlane, intersection);
-            offset.copy(intersection).sub(fly.position);
-
-            console.log('FlyBrain Drag: схватили муху', originalPos.toArray());
+            selMode = null;
         });
 
-        // --- 9. pointermove: тащим муху ---
-        canvas.addEventListener('pointermove', function (e) {
-            if (!dragging) {
-                // Подсветка курсора при наведении в режиме захвата
-                if (grabbing && scene && camera && fly) {
-                    updatePointer(e);
-                    raycaster.setFromCamera(pointer, camera);
-                    const hits = raycaster.intersectObject(fly, true);
-                    canvas.style.cursor = hits.length ? 'grab' : '';
-                }
-                return;
-            }
+        // ---------- Вспомогательная подсказка ----------
+        function setHint(text) {
+            const el = document.getElementById('extra-hint');
+            if (el) el.textContent = text;
+            console.log('🧪', text);
+        }
 
-            updatePointer(e);
-            raycaster.setFromCamera(pointer, camera);
-
-            if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
-                fly.position.copy(intersection.sub(offset));
-
-                // Если в проекте есть отдельный «мозг» мухи — синхронизируем
-                if (fly.userData && typeof fly.userData.x !== 'undefined') {
-                    fly.userData.x = fly.position.x;
-                    fly.userData.z = fly.position.z;
-                }
-                // Часто логика мухи хранит координаты отдельно
-                if (window.__flybrain && window.__flybrain.flyState) {
-                    window.__flybrain.flyState.x = fly.position.x;
-                    window.__flybrain.flyState.z = fly.position.z;
-                }
-            }
-        });
-
-        // --- 10. pointerup: отпускаем муху ---
-        canvas.addEventListener('pointerup', function (e) {
-            if (!dragging) return;
-            dragging = false;
-            try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-            canvas.style.cursor = grabbing ? 'grab' : '';
-            console.log('FlyBrain Drag: отпустили муху →', fly.position.toArray());
-        });
-
-        // --- 11. Подсказка в консоли ---
-        console.log(
-            '%c✅ FlyBrain Drag готов.\n' +
-            'Нажми кнопку «✋ Схватить» на панели, затем тащи муху мышкой.\n' +
-            'Если не работает — открой js/main.js и добавь в конце:\n' +
-            '    window.__flybrain = { scene, camera, renderer, fly };',
-            'color:cyan;font-size:13px'
-        );
+        console.log('%c🧪 Панель экспериментов готова.', 'color:#4af;font-weight:bold');
     })();
     </script>
 </body>
