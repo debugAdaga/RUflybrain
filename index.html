@@ -56,6 +56,10 @@
             border-radius: 4px; line-height: 1;
         }
         .chat-header-actions button:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .chat-header-actions button.on {
+            color: #6f6;
+            text-shadow: 0 0 6px #6f6;
+        }
 
         .chat-status {
             padding: 6px 12px;
@@ -97,6 +101,31 @@
         .msg.thinking { align-self: flex-start; background: #2a2a3a; color: #99a; font-style: italic; }
         .msg.thinking::after { content: '...'; animation: dots 1.5s infinite; }
         @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
+
+        /* === TTS: кликабельные сообщения мухи === */
+        .msg.fly {
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s;
+            position: relative;
+        }
+        .msg.fly::after {
+            content: ' 🔊';
+            font-size: 10px;
+            opacity: 0.35;
+            margin-left: 4px;
+        }
+        .msg.fly:hover {
+            background: #353550;
+            box-shadow: 0 0 8px rgba(120,180,255,0.25);
+        }
+        .msg.fly.speaking {
+            background: #3a4a6a;
+            box-shadow: 0 0 12px rgba(120,180,255,0.6);
+        }
+        .msg.fly.speaking::after {
+            content: ' 🔉';
+            opacity: 1;
+        }
 
         .chat-input-row {
             display: flex; border-top: 1px solid rgba(120,180,255,0.15);
@@ -146,7 +175,7 @@
     <div id="helpOverlay" class="help-overlay" style="display:none;">
         <div class="help-overlay-header"><span>Руководство</span><button class="help-close-btn" id="helpCloseBtn">&times;</button></div>
         <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду.</div>
-        <div class="help-item"><strong>Чат</strong> — общайся с мухой, она отвечает через нейросеть.</div>
+        <div class="help-item"><strong>Чат</strong> — общайся с мухой. Клик по её сообщению — озвучка.</div>
     </div>
 
     <div id="left-panel">
@@ -190,7 +219,7 @@
     <div id="brain3d-tooltip" style="display:none;"></div>
 
     <!-- ============================================================
-         💬 ЧАТ С НЕЙРОСЕТЬЮ + ЖЁСТКИЙ ПРОМПТ + ПОСТ-ФИЛЬТР
+         💬 ЧАТ С НЕЙРОСЕТЬЮ + TTS (озвучка по клику)
          ============================================================ -->
     <div id="fly-chat">
         <div class="chat-header" id="chatHeader">
@@ -199,6 +228,7 @@
                 🐝 Муха Жужа
             </span>
             <span class="chat-header-actions">
+                <button id="ttsToggleBtn" title="Автоозвучка ответов">🔊</button>
                 <button id="chatResetBtn" title="Очистить разговор">↺</button>
                 <button id="chatToggleBtn" title="Свернуть">—</button>
             </span>
@@ -234,7 +264,7 @@
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         🧠 НАСТОЯЩИЙ ЧАТ — Qwen 2.5 + жёсткий промпт + фильтр
+         🧠 ЧАТ + TTS
          ============================================================ -->
     <script type="module">
     import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
@@ -247,6 +277,7 @@
     const headerEl   = $('chatHeader');
     const toggleBtn  = $('chatToggleBtn');
     const resetBtn   = $('chatResetBtn');
+    const ttsToggle  = $('ttsToggleBtn');
     const bodyEl     = $('chatBody');
     const inputEl    = $('chatInput');
     const sendBtn    = $('chatSendBtn');
@@ -257,13 +288,103 @@
 
     let generator = null;
     const chatHistory = [];
-
     const flyMood = { hunger: 0.5, fear: 0.2, mood: 0.6 };
 
+    // ============================================================
+    // 🔊 TTS — синтез речи через Web Speech API
+    // ============================================================
+    const tts = {
+        enabled: true,          // автоозвучка новых ответов
+        voice: null,
+        speakingEl: null,
+
+        // Находим русский голос
+        pickVoice() {
+            if (!('speechSynthesis' in window)) return null;
+            const voices = speechSynthesis.getVoices();
+            // Ищем русский. Приоритет: Google, Microsoft, любой ru-RU
+            const ruVoices = voices.filter(v => /^ru/i.test(v.lang));
+            if (ruVoices.length === 0) return null;
+            // Предпочитаем женские (у мухи «ж-ж-ж» — но пусть будет обычный)
+            const preferred = ruVoices.find(v => /google/i.test(v.name))
+                          || ruVoices.find(v => /irina|elena|milena|alena|female/i.test(v.name))
+                          || ruVoices[0];
+            return preferred;
+        },
+
+        init() {
+            if (!('speechSynthesis' in window)) {
+                console.warn('🔇 Браузер не поддерживает синтез речи');
+                ttsToggle.disabled = true;
+                ttsToggle.title = 'TTS не поддерживается';
+                return;
+            }
+            // Голоса грузятся асинхронно
+            const load = () => { tts.voice = tts.pickVoice(); };
+            load();
+            speechSynthesis.onvoiceschanged = load;
+        },
+
+        speak(text, el) {
+            if (!('speechSynthesis' in window)) return;
+            speechSynthesis.cancel();
+
+            // Убираем эмодзи и лишние символы
+            const clean = text
+                .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                .replace(/[🎮💬🧠🍎😨🙂📚🔊🔉❤️✋🐝]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!clean) return;
+
+            const u = new SpeechSynthesisUtterance(clean);
+            u.lang = 'ru-RU';
+            if (tts.voice) u.voice = tts.voice;
+            u.rate = 1.15;   // муха говорит быстро
+            u.pitch = 1.3;   // чуть выше обычного — «насекомое»
+            u.volume = 1.0;
+
+            // Подсветка
+            if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
+            tts.speakingEl = el || null;
+            if (tts.speakingEl) tts.speakingEl.classList.add('speaking');
+
+            u.onend = () => {
+                if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
+                tts.speakingEl = null;
+            };
+            u.onerror = () => {
+                if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
+                tts.speakingEl = null;
+            };
+
+            speechSynthesis.speak(u);
+        }
+    };
+    tts.init();
+
+    // Кнопка 🔊 — вкл/выкл автоозвучку
+    ttsToggle.classList.add('on');  // по умолчанию включено
+    ttsToggle.addEventListener('click', e => {
+        e.stopPropagation();
+        tts.enabled = !tts.enabled;
+        ttsToggle.classList.toggle('on', tts.enabled);
+        ttsToggle.textContent = tts.enabled ? '🔊' : '🔇';
+        if (!tts.enabled) speechSynthesis.cancel();
+    });
+
+    // ============================================================
+    // Сообщения
+    // ============================================================
     function addMsg(text, cls) {
         const div = document.createElement('div');
         div.className = 'msg ' + (cls || 'system');
         div.textContent = text;
+        // Клик по сообщению мухи — озвучка
+        if (cls && cls.split(' ').includes('fly')) {
+            div.addEventListener('click', () => tts.speak(text, div));
+        }
         bodyEl.appendChild(div);
         bodyEl.scrollTop = bodyEl.scrollHeight;
         return div;
@@ -275,11 +396,10 @@
     }
 
     // ============================================================
-    // ЗАГРУЗКА МОДЕЛИ
+    // Загрузка модели
     // ============================================================
     async function loadModel() {
         const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
-
         try {
             setStatus('Загрузка нейросети (первый раз ~350 МБ)…', 'loading');
             progressWrap.style.display = 'inline-block';
@@ -296,17 +416,13 @@
 
             try {
                 generator = await pipeline('text-generation', MODEL, {
-                    dtype: 'q4',
-                    device: 'webgpu',
-                    progress_callback: onProgress
+                    dtype: 'q4', device: 'webgpu', progress_callback: onProgress
                 });
             } catch (gpuErr) {
                 console.warn('WebGPU не сработал, переключаюсь на CPU:', gpuErr.message);
                 setStatus('WebGPU недоступен, грузим на CPU…', 'loading');
                 generator = await pipeline('text-generation', MODEL, {
-                    dtype: 'q4',
-                    device: 'wasm',
-                    progress_callback: onProgress
+                    dtype: 'q4', device: 'wasm', progress_callback: onProgress
                 });
             }
 
@@ -317,7 +433,9 @@
             inputEl.placeholder = 'Напиши мухе...';
             inputEl.focus();
 
-            addMsg('🐝 Ж-ж-ж... Привет. Я муха Жужа. Спроси что-нибудь.', 'fly');
+            const hello = 'Ж-ж-ж... Привет. Я муха Жужа. Спроси что-нибудь.';
+            addMsg('🐝 ' + hello, 'fly');
+            if (tts.enabled) tts.speak(hello, bodyEl.lastChild);
         } catch (e) {
             console.error('Ошибка загрузки модели:', e);
             setStatus('Ошибка: ' + e.message, 'error');
@@ -326,7 +444,7 @@
     }
 
     // ============================================================
-    // ГЕНЕРАЦИЯ ОТВЕТА — жёсткий промпт + few-shot + пост-фильтр
+    // Генерация ответа — жёсткий промпт + пост-фильтр
     // ============================================================
     async function generateResponse(userText) {
         const systemPrompt =
@@ -340,7 +458,7 @@
             `- Отвечай ТОЛЬКО на русском языке.\n` +
             `- Отвечай ОЧЕНЬ КОРОТКО: одно предложение, максимум два.\n` +
             `- Иногда вставляй "ж-ж-ж".\n` +
-            `- Если голодна — проси еду. Если напугана — проси защиты. Если радостная — жужжи весело.\n` +
+            `- Если голодна — проси еду. Если напугана — проси защиты.\n` +
             `\nТвоё состояние: голод=${flyMood.hunger.toFixed(1)}, страх=${flyMood.fear.toFixed(1)}, настроение=${flyMood.mood.toFixed(1)}.`;
 
         const messages = [
@@ -381,7 +499,7 @@
         }
         answer = (answer || '').trim();
 
-        // ---------- ПОСТ-ФИЛЬТР ----------
+        // Пост-фильтр
         answer = answer.replace(
             /депутат|совет|район|Чечн|Азербайджан|Азербит|СССР|республик|област|край|парти|политик|президент|министр|государств|Бекоруллин|Калышата|Рабатович|Мухахкан|Абдальиндин|Салачагушина|Кирбиевский|Загéшского/gi,
             ''
@@ -391,14 +509,12 @@
         answer = answer.replace(/[\u4e00-\u9fff\u3040-\u30ff]+/g, '');
         answer = answer.replace(/\s+/g, ' ').trim();
 
-        if (answer.length < 5) {
-            answer = 'Ж-ж-ж... Я муха Жужа. Летаю, ищу еду.';
-        }
+        if (answer.length < 5) answer = 'Ж-ж-ж... Я муха Жужа. Летаю, ищу еду.';
         if (!/ж-ж|муха|жужа|летаю|крыл|лапк|еда|голод/i.test(answer)) {
             answer = 'Ж-ж-ж. ' + answer;
         }
 
-        // ---------- Меняем состояние мухи ----------
+        // Меняем состояние
         const lower = userText.toLowerCase();
         if (/еда|есть|кушать|голод|корм|яблоко|сахар|мёд/.test(lower)) {
             flyMood.hunger = Math.max(0, flyMood.hunger - 0.3);
@@ -417,7 +533,7 @@
     }
 
     // ============================================================
-    // ОТПРАВКА
+    // Отправка
     // ============================================================
     async function sendMessage() {
         const text = inputEl.value.trim();
@@ -434,8 +550,11 @@
         try {
             const answer = await generateResponse(text);
             thinking.remove();
-            addMsg(answer, 'fly');
+            const msgEl = addMsg(answer, 'fly');
             chatHistory.push({ role: 'assistant', content: answer });
+
+            // Автоозвучка нового ответа
+            if (tts.enabled) tts.speak(answer, msgEl);
         } catch (e) {
             thinking.remove();
             addMsg('⚠️ Ошибка: ' + e.message, 'system');
@@ -461,6 +580,7 @@
     resetBtn.addEventListener('click', e => {
         e.stopPropagation();
         if (!confirm('Очистить историю разговора?')) return;
+        speechSynthesis.cancel();
         chatHistory.length = 0;
         bodyEl.innerHTML = '';
         addMsg('🔄 Разговор начат заново.', 'system');
@@ -492,13 +612,14 @@
     });
 
     addMsg('⏳ Загружаю нейросеть. Первый раз — 1–3 минуты.', 'system');
+    addMsg('🔊 Клик по сообщению мухи — озвучка. Кнопка 🔊 в шапке — автоозвучка вкл/выкл.', 'system');
     loadModel();
 
     console.log(
-        '%c✅ Чат готов.\n' +
-        '• Модель: Qwen2.5-0.5B-Instruct (350 МБ)\n' +
-        '• Жёсткий промпт + few-shot примеры + пост-фильтр\n' +
-        '• Если муха снова чудит — скажи, поменяем на 1.5B',
+        '%c✅ Чат с TTS готов.\n' +
+        '• Клик по сообщению мухи — озвучка\n' +
+        '• Кнопка 🔊 в шапке — автоозвучка новых ответов\n' +
+        '• Если голосов нет — в системе не установлен русский TTS',
         'color:lime;font-weight:bold'
     );
     </script>
