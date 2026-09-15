@@ -47,6 +47,7 @@
         .status-dot.loading { background: #fb4; animation: pulse 1.5s infinite; }
         .status-dot.ready   { background: #6f6; }
         .status-dot.error   { background: #f66; }
+        .status-dot.cached  { background: #8cf; }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         .chat-header-actions { display: flex; gap: 4px; }
@@ -102,11 +103,10 @@
         .msg.thinking::after { content: '...'; animation: dots 1.5s infinite; }
         @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
 
-        /* === TTS: кликабельные сообщения мухи === */
+        /* TTS */
         .msg.fly {
             cursor: pointer;
             transition: background 0.15s, box-shadow 0.15s;
-            position: relative;
         }
         .msg.fly::after {
             content: ' 🔊';
@@ -219,7 +219,7 @@
     <div id="brain3d-tooltip" style="display:none;"></div>
 
     <!-- ============================================================
-         💬 ЧАТ С НЕЙРОСЕТЬЮ + TTS (озвучка по клику)
+         💬 ЧАТ: Qwen2.5-1.5B + кэш + TTS
          ============================================================ -->
     <div id="fly-chat">
         <div class="chat-header" id="chatHeader">
@@ -234,7 +234,7 @@
             </span>
         </div>
         <div class="chat-status" id="chatStatus">
-            <span id="statusText">Загрузка нейросети…</span>
+            <span id="statusText">Проверка кэша…</span>
             <span class="progress" id="progressWrap" style="display:none;">
                 <div id="progressBar"></div>
             </span>
@@ -264,13 +264,26 @@
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         🧠 ЧАТ + TTS
+         🧠 ЧАТ С QWEN2.5-1.5B + КЭШ + TTS
          ============================================================ -->
     <script type="module">
     import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
 
+    // ============================================================
+    // НАСТРОЙКА КЭША
+    // ============================================================
+    // allowLocalModels=false — не искать модели на диске
+    // useBrowserCache=true — использовать Cache API (хранит модели между сессиями)
+    // useFSCache=false — File System API не нужен
     env.allowLocalModels = false;
     env.useBrowserCache = true;
+    env.useFSCache = false;
+
+    // На всякий случай явно указываем бэкенд кэша
+    // (в transformers.js v3 это браузерный Cache API по умолчанию)
+    if (env.backends && env.backends.onnx) {
+        env.backends.onnx.wasm.numThreads = 4;
+    }
 
     const $ = id => document.getElementById(id);
     const chatEl     = $('fly-chat');
@@ -291,70 +304,51 @@
     const flyMood = { hunger: 0.5, fear: 0.2, mood: 0.6 };
 
     // ============================================================
-    // 🔊 TTS — синтез речи через Web Speech API
+    // TTS
     // ============================================================
     const tts = {
-        enabled: true,          // автоозвучка новых ответов
+        enabled: true,
         voice: null,
         speakingEl: null,
-
-        // Находим русский голос
         pickVoice() {
             if (!('speechSynthesis' in window)) return null;
             const voices = speechSynthesis.getVoices();
-            // Ищем русский. Приоритет: Google, Microsoft, любой ru-RU
             const ruVoices = voices.filter(v => /^ru/i.test(v.lang));
             if (ruVoices.length === 0) return null;
-            // Предпочитаем женские (у мухи «ж-ж-ж» — но пусть будет обычный)
-            const preferred = ruVoices.find(v => /google/i.test(v.name))
-                          || ruVoices.find(v => /irina|elena|milena|alena|female/i.test(v.name))
-                          || ruVoices[0];
-            return preferred;
+            return ruVoices.find(v => /google/i.test(v.name))
+                || ruVoices.find(v => /irina|elena|milena|alena|female/i.test(v.name))
+                || ruVoices[0];
         },
-
         init() {
             if (!('speechSynthesis' in window)) {
-                console.warn('🔇 Браузер не поддерживает синтез речи');
                 ttsToggle.disabled = true;
                 ttsToggle.title = 'TTS не поддерживается';
                 return;
             }
-            // Голоса грузятся асинхронно
             const load = () => { tts.voice = tts.pickVoice(); };
             load();
             speechSynthesis.onvoiceschanged = load;
         },
-
         speak(text, el) {
             if (!('speechSynthesis' in window)) return;
             speechSynthesis.cancel();
-
-            // Убираем эмодзи и лишние символы
             const clean = text
                 .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-                .replace(/[🎮💬🧠🍎😨🙂📚🔊🔉❤️✋🐝]/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-
+                .replace(/\s+/g, ' ').trim();
             if (!clean) return;
 
             const u = new SpeechSynthesisUtterance(clean);
             u.lang = 'ru-RU';
             if (tts.voice) u.voice = tts.voice;
-            u.rate = 1.15;   // муха говорит быстро
-            u.pitch = 1.3;   // чуть выше обычного — «насекомое»
+            u.rate = 1.15;
+            u.pitch = 1.3;
             u.volume = 1.0;
 
-            // Подсветка
             if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
             tts.speakingEl = el || null;
             if (tts.speakingEl) tts.speakingEl.classList.add('speaking');
 
-            u.onend = () => {
-                if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
-                tts.speakingEl = null;
-            };
-            u.onerror = () => {
+            u.onend = u.onerror = () => {
                 if (tts.speakingEl) tts.speakingEl.classList.remove('speaking');
                 tts.speakingEl = null;
             };
@@ -364,8 +358,7 @@
     };
     tts.init();
 
-    // Кнопка 🔊 — вкл/выкл автоозвучку
-    ttsToggle.classList.add('on');  // по умолчанию включено
+    ttsToggle.classList.add('on');
     ttsToggle.addEventListener('click', e => {
         e.stopPropagation();
         tts.enabled = !tts.enabled;
@@ -381,7 +374,6 @@
         const div = document.createElement('div');
         div.className = 'msg ' + (cls || 'system');
         div.textContent = text;
-        // Клик по сообщению мухи — озвучка
         if (cls && cls.split(' ').includes('fly')) {
             div.addEventListener('click', () => tts.speak(text, div));
         }
@@ -396,38 +388,77 @@
     }
 
     // ============================================================
-    // Загрузка модели
+    // ЗАГРУЗКА МОДЕЛИ С КЭШЕМ
     // ============================================================
-    async function loadModel() {
-        const MODEL = 'onnx-community/Qwen2.5-1.5B-Instruct';
+    const MODEL = 'onnx-community/Qwen2.5-1.5B-Instruct';
+    // Меняем на 0.5B, если 1.5B слишком медленно:
+    // const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
+
+    // Проверка, есть ли модель в кэше
+    async function isModelCached() {
         try {
-            setStatus('Загрузка нейросети (первый раз ~350 МБ)…', 'loading');
+            if (!('caches' in window)) return false;
+            const cacheNames = await caches.keys();
+            for (const name of cacheNames) {
+                const cache = await caches.open(name);
+                const keys = await cache.keys();
+                // Ищем любой файл, где встречается имя модели
+                const hasModel = keys.some(req => req.url.includes('Qwen2.5-1.5B'));
+                if (hasModel) return true;
+            }
+        } catch (e) {
+            console.warn('Ошибка проверки кэша:', e);
+        }
+        return false;
+    }
+
+    async function loadModel() {
+        try {
+            // Проверяем кэш
+            setStatus('Проверка кэша модели…', 'loading');
+            const cached = await isModelCached();
+
+            if (cached) {
+                setStatus('Модель найдена в кэше. Загрузка…', 'cached');
+                console.log('📦 Модель найдена в браузерном кэше — качать не придётся');
+            } else {
+                setStatus('Скачивание модели (~1 ГБ, один раз)…', 'loading');
+                console.log('📥 Модель не в кэше — качаем ~1 ГБ. Это займёт 3-5 минут.');
+            }
             progressWrap.style.display = 'inline-block';
 
             const onProgress = (data) => {
                 if (data.status === 'progress') {
                     const pct = Math.round(data.progress || 0);
                     progressBar.style.width = pct + '%';
-                    setStatus(`Загрузка: ${pct}%`, 'loading');
+                    const file = (data.file || '').split('/').pop();
+                    setStatus(`Загрузка: ${pct}% · ${file}`, cached ? 'cached' : 'loading');
                 } else if (data.status === 'ready') {
                     setStatus('Распаковка модели…', 'loading');
+                } else if (data.status === 'done') {
+                    setStatus('Почти готово…', 'loading');
                 }
             };
 
+            // Пытаемся на WebGPU, при неудаче — на CPU
             try {
                 generator = await pipeline('text-generation', MODEL, {
-                    dtype: 'q4', device: 'webgpu', progress_callback: onProgress
+                    dtype: 'q4',
+                    device: 'webgpu',
+                    progress_callback: onProgress
                 });
             } catch (gpuErr) {
                 console.warn('WebGPU не сработал, переключаюсь на CPU:', gpuErr.message);
                 setStatus('WebGPU недоступен, грузим на CPU…', 'loading');
                 generator = await pipeline('text-generation', MODEL, {
-                    dtype: 'q4', device: 'wasm', progress_callback: onProgress
+                    dtype: 'q4',
+                    device: 'wasm',
+                    progress_callback: onProgress
                 });
             }
 
             progressWrap.style.display = 'none';
-            setStatus('Готова к разговору', 'ready');
+            setStatus('Готова к разговору · модель в кэше', 'ready');
             inputEl.disabled = false;
             sendBtn.disabled = false;
             inputEl.placeholder = 'Напиши мухе...';
@@ -436,6 +467,13 @@
             const hello = 'Ж-ж-ж... Привет. Я муха Жужа. Спроси что-нибудь.';
             addMsg('🐝 ' + hello, 'fly');
             if (tts.enabled) tts.speak(hello, bodyEl.lastChild);
+
+            console.log(
+                '%c✅ Модель загружена.\n' +
+                'В следующий раз загрузится из кэша мгновенно, даже без интернета.\n' +
+                'Чтобы очистить кэш: DevTools → Application → Cache Storage → удалить.',
+                'color:lime'
+            );
         } catch (e) {
             console.error('Ошибка загрузки модели:', e);
             setStatus('Ошибка: ' + e.message, 'error');
@@ -444,7 +482,7 @@
     }
 
     // ============================================================
-    // Генерация ответа — жёсткий промпт + пост-фильтр
+    // ГЕНЕРАЦИЯ
     // ============================================================
     async function generateResponse(userText) {
         const systemPrompt =
@@ -453,12 +491,9 @@
             `Ты живёшь в комнате человека, летаешь, ищешь еду, боишься тапка. ` +
             `\nВАЖНЫЕ ПРАВИЛА:\n` +
             `- Ты НЕ человек. Ты НЕ депутат. Ты НЕ политик. Ты НЕ из Чечни, Азербайджана, СССР.\n` +
-            `- Ты НЕ знаешь слов "район", "совет", "республика", "край", "область".\n` +
             `- У тебя НЕТ фамилии, отчества, должности. Только имя Жужа.\n` +
-            `- Отвечай ТОЛЬКО на русском языке.\n` +
-            `- Отвечай ОЧЕНЬ КОРОТКО: одно предложение, максимум два.\n` +
+            `- Отвечай ТОЛЬКО на русском, ОЧЕНЬ КОРОТКО: 1-2 предложения.\n` +
             `- Иногда вставляй "ж-ж-ж".\n` +
-            `- Если голодна — проси еду. Если напугана — проси защиты.\n` +
             `\nТвоё состояние: голод=${flyMood.hunger.toFixed(1)}, страх=${flyMood.fear.toFixed(1)}, настроение=${flyMood.mood.toFixed(1)}.`;
 
         const messages = [
@@ -478,12 +513,12 @@
         ];
 
         const output = await generator(messages, {
-            max_new_tokens: 40,
-            temperature: 0.5,
-            top_p: 0.85,
-            top_k: 40,
+            max_new_tokens: 60,
+            temperature: 0.6,
+            top_p: 0.9,
+            top_k: 50,
             do_sample: true,
-            repetition_penalty: 1.25,
+            repetition_penalty: 1.15,
             no_repeat_ngram_size: 3
         });
 
@@ -501,7 +536,7 @@
 
         // Пост-фильтр
         answer = answer.replace(
-            /депутат|совет|район|Чечн|Азербайджан|Азербит|СССР|республик|област|край|парти|политик|президент|министр|государств|Бекоруллин|Калышата|Рабатович|Мухахкан|Абдальиндин|Салачагушина|Кирбиевский|Загéшского/gi,
+            /депутат|совет|район|Чечн|Азербайджан|Азербит|СССР|республик|област|край|парти|политик|президент|министр|государств|Бекоруллин|Калышата|Рабатович|Мухахкан|Абдальиндин|Салачагушина|Кирбиевский/gi,
             ''
         );
         answer = answer.replace(/(?:[А-ЯЁ][а-яё]+\s+){2,}[А-ЯЁ][а-яё]+/g, 'Жужа');
@@ -514,7 +549,7 @@
             answer = 'Ж-ж-ж. ' + answer;
         }
 
-        // Меняем состояние
+        // Состояние
         const lower = userText.toLowerCase();
         if (/еда|есть|кушать|голод|корм|яблоко|сахар|мёд/.test(lower)) {
             flyMood.hunger = Math.max(0, flyMood.hunger - 0.3);
@@ -553,7 +588,6 @@
             const msgEl = addMsg(answer, 'fly');
             chatHistory.push({ role: 'assistant', content: answer });
 
-            // Автоозвучка нового ответа
             if (tts.enabled) tts.speak(answer, msgEl);
         } catch (e) {
             thinking.remove();
@@ -611,15 +645,19 @@
         try { headerEl.releasePointerCapture(e.pointerId); } catch(_) {}
     });
 
-    addMsg('⏳ Загружаю нейросеть. Первый раз — 1–3 минуты.', 'system');
-    addMsg('🔊 Клик по сообщению мухи — озвучка. Кнопка 🔊 в шапке — автоозвучка вкл/выкл.', 'system');
+    // ============================================================
+    // Погнали
+    // ============================================================
+    addMsg('⏳ Загружаю модель Qwen2.5-1.5B. При первом запуске — 3–5 минут.', 'system');
+    addMsg('📦 Модель сохранится в браузере. Следующий запуск — мгновенный.', 'system');
+    addMsg('🔊 Клик по сообщению мухи — озвучка. Кнопка 🔊 в шапке — автоозвучка.', 'system');
     loadModel();
 
     console.log(
-        '%c✅ Чат с TTS готов.\n' +
-        '• Клик по сообщению мухи — озвучка\n' +
-        '• Кнопка 🔊 в шапке — автоозвучка новых ответов\n' +
-        '• Если голосов нет — в системе не установлен русский TTS',
+        '%c✅ Готово.\n' +
+        '• Модель: Qwen2.5-1.5B-Instruct (умнее)\n' +
+        '• Кэш: Cache API — второй запуск мгновенный, даже без интернета\n' +
+        '• Кнопка 🗑 (если добавишь) или DevTools → Cache Storage для очистки',
         'color:lime;font-weight:bold'
     );
     </script>
