@@ -5,164 +5,146 @@
     <title>Мозг мухи</title>
     <link rel="stylesheet" type="text/css" href="./css/main.css?v=17">
     <style>
-        /* === Стили чата с мухой === */
+        /* === ЧАТ === */
         #fly-chat {
             position: fixed;
-            bottom: 16px;
-            right: 16px;
-            width: 340px;
-            max-height: 480px;
-            background: rgba(18, 18, 26, 0.95);
-            border: 1px solid rgba(120, 180, 255, 0.3);
+            bottom: 12px; right: 12px;
+            width: 380px; height: 560px;
+            background: rgba(15,15,22,0.97);
+            border: 1px solid rgba(120,180,255,0.3);
             border-radius: 12px;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             z-index: 10000;
-            font-family: system-ui, -apple-system, sans-serif;
-            font-size: 13px;
+            font-family: system-ui, sans-serif; font-size: 13px;
             color: #e8e8f0;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.7);
             overflow: hidden;
         }
+        #fly-chat.collapsed { height: 42px; }
         #fly-chat.collapsed .chat-body,
-        #fly-chat.collapsed .chat-input-row { display: none; }
-        #fly-chat.collapsed { max-height: 40px; }
+        #fly-chat.collapsed .chat-input-row,
+        #fly-chat.collapsed .fly-status,
+        #fly-chat.collapsed .chat-tabs { display: none; }
 
         .chat-header {
             padding: 10px 14px;
             background: linear-gradient(90deg, #1a1a2e, #16213e);
-            border-bottom: 1px solid rgba(120, 180, 255, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; user-select: none;
+            border-bottom: 1px solid rgba(120,180,255,0.15);
         }
-        .chat-header-title {
-            font-weight: 600;
-            color: #8cf;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .chat-header-title .mood-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: #4f4;
-            box-shadow: 0 0 6px currentColor;
-        }
-        .chat-header-actions { display: flex; gap: 6px; }
+        .chat-header-title { font-weight: 600; color: #8cf; display: flex; gap: 6px; align-items: center; }
+        .mood-dot { width: 8px; height: 8px; border-radius: 50%; background: #4f4; box-shadow: 0 0 6px currentColor; }
         .chat-header-actions button {
-            background: transparent; border: none; color: #aaa;
-            cursor: pointer; font-size: 14px; padding: 2px 6px;
-            border-radius: 4px;
+            background: transparent; border: none; color: #aab; cursor: pointer;
+            font-size: 14px; padding: 2px 7px; border-radius: 4px;
         }
         .chat-header-actions button:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
+        .chat-tabs {
+            display: flex; background: #11111a;
+            border-bottom: 1px solid rgba(120,180,255,0.15);
+        }
+        .chat-tab {
+            flex: 1; padding: 7px 0; text-align: center;
+            color: #99a; cursor: pointer; font-size: 12px;
+            border-bottom: 2px solid transparent;
+        }
+        .chat-tab.active { color: #8cf; border-bottom-color: #8cf; }
+        .chat-tab:hover { background: rgba(120,180,255,0.05); }
+
+        .fly-status {
+            padding: 6px 12px; background: rgba(0,0,0,0.3);
+            display: flex; gap: 10px; font-size: 11px; color: #99a;
+            border-bottom: 1px solid rgba(120,180,255,0.08);
+        }
+        .stat { display: flex; align-items: center; gap: 4px; }
+        .bar { width: 36px; height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+        .bar > div { height: 100%; transition: width 0.4s; }
+        .bar.hunger > div { background: #fb4; }
+        .bar.fear > div { background: #f66; }
+        .bar.mood > div { background: #6f6; }
+        .bar.words > div { background: #8cf; }
+
         .chat-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 340px;
-            min-height: 180px;
+            flex: 1; overflow-y: auto; padding: 10px 12px;
+            display: flex; flex-direction: column; gap: 8px;
         }
         .chat-body::-webkit-scrollbar { width: 6px; }
-        .chat-body::-webkit-scrollbar-thumb {
-            background: rgba(120,180,255,0.3); border-radius: 3px;
-        }
+        .chat-body::-webkit-scrollbar-thumb { background: rgba(120,180,255,0.3); border-radius: 3px; }
 
         .msg {
-            max-width: 85%;
-            padding: 7px 11px;
-            border-radius: 12px;
-            line-height: 1.35;
-            word-wrap: break-word;
+            max-width: 88%; padding: 7px 11px; border-radius: 12px;
+            line-height: 1.35; word-wrap: break-word;
             animation: msgIn 0.2s ease-out;
         }
-        @keyframes msgIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .msg.user {
-            align-self: flex-end;
-            background: #2b4a7a;
-            color: #eaf2ff;
-            border-bottom-right-radius: 3px;
-        }
-        .msg.fly {
-            align-self: flex-start;
-            background: #2a2a3a;
-            color: #dfe6f0;
-            border-bottom-left-radius: 3px;
-        }
-        .msg.fly.emotion-fear { border-left: 3px solid #f66; }
-        .msg.fly.emotion-happy { border-left: 3px solid #6f6; }
-        .msg.fly.emotion-hungry { border-left: 3px solid #fb4; }
-        .msg.fly.emotion-angry { border-left: 3px solid #f44; }
+        @keyframes msgIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
+        .msg.user { align-self: flex-end; background: #2b4a7a; color: #eaf2ff; border-bottom-right-radius: 3px; }
+        .msg.fly { align-self: flex-start; background: #2a2a3a; color: #dfe6f0; border-bottom-left-radius: 3px; }
+        .msg.fly.fear { border-left: 3px solid #f66; }
+        .msg.fly.happy { border-left: 3px solid #6f6; }
+        .msg.fly.hungry { border-left: 3px solid #fb4; }
+        .msg.fly.curious { border-left: 3px solid #8cf; }
+        .msg.fly.learn { border-left: 3px solid #b8f; background: #221a33; }
         .msg.system {
-            align-self: center;
-            background: rgba(80, 80, 120, 0.4);
-            color: #aab;
-            font-size: 11px;
-            font-style: italic;
-            padding: 4px 10px;
+            align-self: center; background: rgba(80,80,120,0.3);
+            color: #aab; font-size: 11px; font-style: italic;
+            padding: 4px 10px; border-radius: 8px;
         }
 
         .chat-input-row {
-            display: flex;
-            border-top: 1px solid rgba(120, 180, 255, 0.2);
-            padding: 8px;
-            gap: 6px;
+            display: flex; border-top: 1px solid rgba(120,180,255,0.15);
+            padding: 8px; gap: 6px; background: #11111a;
         }
         .chat-input-row input {
-            flex: 1;
-            background: #1a1a24;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 8px 10px;
-            color: #e8e8f0;
-            font-size: 13px;
-            outline: none;
+            flex: 1; background: #1a1a24; border: 1px solid #333;
+            border-radius: 8px; padding: 8px 10px;
+            color: #e8e8f0; font-size: 13px; outline: none;
         }
-        .chat-input-row input:focus {
-            border-color: #4a6fa5;
-        }
+        .chat-input-row input:focus { border-color: #4a6fa5; }
         .chat-input-row button {
-            background: #2b4a7a;
-            border: none;
-            border-radius: 8px;
-            color: #eaf2ff;
-            padding: 8px 14px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
+            background: #2b4a7a; border: none; border-radius: 8px;
+            color: #eaf2ff; padding: 8px 14px;
+            cursor: pointer; font-size: 13px; font-weight: 500;
         }
         .chat-input-row button:hover { background: #3b5a8a; }
-        .chat-input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        /* Панель состояния мухи в чате */
-        .fly-status {
-            padding: 6px 12px;
-            background: rgba(0,0,0,0.3);
-            border-bottom: 1px solid rgba(120, 180, 255, 0.1);
-            display: flex;
-            gap: 10px;
-            font-size: 11px;
-            color: #99a;
+        /* Панель «мозга» — словарь */
+        .brain-panel {
+            flex: 1; overflow-y: auto; padding: 10px 12px;
         }
-        .fly-status .stat { display: flex; align-items: center; gap: 4px; }
-        .fly-status .bar {
-            width: 40px; height: 4px; background: #333;
-            border-radius: 2px; overflow: hidden;
+        .brain-panel h3 {
+            margin: 0 0 8px; font-size: 13px; color: #8cf;
+            font-weight: 600;
         }
-        .fly-status .bar > div {
-            height: 100%; background: #4af; transition: width 0.4s;
+        .brain-panel h4 {
+            margin: 12px 0 6px; font-size: 12px; color: #aab;
         }
-        .fly-status .bar.hunger > div { background: #fb4; }
-        .fly-status .bar.fear > div { background: #f66; }
-        .fly-status .bar.mood > div { background: #6f6; }
+        .word-chip {
+            display: inline-block; margin: 2px 4px 2px 0;
+            padding: 3px 8px; background: #2a2a3a; border-radius: 10px;
+            font-size: 11px; color: #dfe6f0;
+        }
+        .word-chip.threat { background: #3a1a1a; color: #f99; }
+        .word-chip.food { background: #3a3a1a; color: #fd9; }
+        .word-chip.affection { background: #1a3a1a; color: #9f9; }
+        .word-chip.unknown { background: #222; color: #999; }
+        .word-chip .uses { color: #667; margin-left: 4px; font-size: 10px; }
+
+        .letter-grid {
+            display: grid; grid-template-columns: repeat(11, 1fr);
+            gap: 3px; margin-top: 6px;
+        }
+        .letter-cell {
+            aspect-ratio: 1; background: #1a1a24; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #667;
+        }
+        .letter-cell.known { background: #2b4a7a; color: #cfe; font-weight: 600; }
+        .letter-cell .count {
+            position: absolute; font-size: 7px; color: #aab;
+            transform: translate(7px, 6px);
+        }
     </style>
 </head>
 
@@ -182,44 +164,29 @@
             <button class="tool-btn" id="liteBtn">Лёгкий режим</button>
         </div>
         <div class="toolbar-right">
-            <span id="claudeStatus" class="claude-status" style="display:none;">
-                <span class="claude-dot"></span>
-                <span class="claude-status-text">ИИ</span>
-            </span>
             <span class="toolbar-title">Мозг мухи</span>
-            <span id="scaleIndicator" class="scale-indicator" style="display:none;"></span>
             <img id="centerButton" src="./svg/center.svg" height="24" class="noselect toolbar-icon" alt="Центрировать">
             <img id="clearButton" src="./svg/clear.svg" height="24" class="noselect toolbar-icon" alt="Очистить">
-            <a href="https://github.com/snedea/flybrain">
-                <img id="githubButton" src="./svg/github.svg" class="noselect" alt="GitHub">
-            </a>
+            <a href="https://github.com/snedea/flybrain"><img id="githubButton" src="./svg/github.svg" class="noselect" alt="GitHub"></a>
         </div>
     </div>
 
     <div id="helpOverlay" class="help-overlay" style="display:none;">
-        <div class="help-overlay-header">
-            <span>Руководство по взаимодействию</span>
-            <button class="help-close-btn" id="helpCloseBtn">&times;</button>
-        </div>
+        <div class="help-overlay-header"><span>Руководство</span><button class="help-close-btn" id="helpCloseBtn">&times;</button></div>
         <div class="help-item"><strong>Кормить</strong> — кликните по холсту, чтобы положить еду.</div>
-        <div class="help-item"><strong>Прикоснуться</strong> — кликните по мухе, чтобы прикоснуться.</div>
-        <div class="help-item"><strong>Ветер</strong> — зажмите и тяните рядом с мухой.</div>
-        <div class="help-item"><strong>Свет</strong> — переключает Ярко / Тускло / Темно.</div>
-        <div class="help-item"><strong>Температура</strong> — Нейтрально / Тепло / Холодно.</div>
-        <div class="help-item"><strong>Чат</strong> — муха понимает слова и учится новым.</div>
+        <div class="help-item"><strong>Чат</strong> — муха учится словам и запоминает их. Вкладка «Мозг» показывает выученное.</div>
     </div>
 
     <div id="left-panel">
         <div id="connectome-panel">
             <div class="connectome-header">
                 <span class="connectome-label">Коннектом</span>
-                <button class="connectome-toggle-btn" id="connectomeToggleBtn" title="Переключить вид (V)">Скрыть</button>
+                <button class="connectome-toggle-btn" id="connectomeToggleBtn">Скрыть</button>
             </div>
-            <div class="connectome-subtitle" id="connectomeSubtitle">Загрузка коннектома...</div>
+            <div class="connectome-subtitle" id="connectomeSubtitle">Загрузка...</div>
             <div id="nodeHolder" class="connectome-grid"></div>
             <div id="neuronTooltip" class="neuron-tooltip"></div>
         </div>
-
         <div id="drive-meters">
             <div class="drive-row"><span class="drive-label">Состояние</span><span id="behaviorState" class="behavior-state">покой</span></div>
             <div class="drive-row"><span class="drive-label">Голод</span><div class="drive-bar-bg"><div class="drive-bar" id="driveHunger"></div></div></div>
@@ -236,21 +203,6 @@
             <button class="caretaker-sidebar-close" id="caretaker-sidebar-close">&times;</button>
         </div>
         <div class="activity-feed" id="activity-feed-list"></div>
-        <div class="chat-section" id="chat-section" style="display:none;"></div>
-        <div class="analytics-section" id="analytics-section">
-            <div class="analytics-section-header">
-                <span class="analytics-section-title">Аналитика</span>
-                <button class="analytics-toggle-btn" id="analytics-toggle">Скрыть</button>
-            </div>
-            <div class="analytics-content" id="analytics-content"></div>
-        </div>
-        <div class="calendar-section" id="calendar-section">
-            <div class="calendar-section-header">
-                <span class="calendar-section-title">Календарь</span>
-                <button class="calendar-toggle-btn" id="calendar-toggle">Скрыть</button>
-            </div>
-            <div class="calendar-content" id="calendar-content"></div>
-        </div>
     </div>
 
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
@@ -262,184 +214,218 @@
     </div>
 
     <!-- ============================================================
-         💬 ЧАТ С МУХОЙ
+         💬 ЧАТ С ОБУЧЕНИЕМ
          ============================================================ -->
     <div id="fly-chat">
         <div class="chat-header" id="flyChatHeader">
             <span class="chat-header-title">
                 <span class="mood-dot" id="moodDot"></span>
-                🐝 Муха говорит
+                🐝 Муха учится
             </span>
             <span class="chat-header-actions">
-                <button id="chatResetBtn" title="Сбросить обучение">↺</button>
+                <button id="chatResetBtn" title="Сбросить всё обучение">↺</button>
                 <button id="chatToggleBtn" title="Свернуть">—</button>
             </span>
         </div>
-        <div class="fly-status">
-            <span class="stat">🍎<span class="bar hunger"><div id="chatHungerBar" style="width:0%"></div></span></span>
-            <span class="stat">😨<span class="bar fear"><div id="chatFearBar" style="width:0%"></div></span></span>
-            <span class="stat">🙂<span class="bar mood"><div id="chatMoodBar" style="width:50%"></div></span></span>
+        <div class="chat-tabs">
+            <div class="chat-tab active" data-tab="chat">💬 Чат</div>
+            <div class="chat-tab" data-tab="brain">🧠 Мозг</div>
+            <div class="chat-tab" data-tab="help">❓ Как учить</div>
         </div>
+        <div class="fly-status">
+            <span class="stat">🍎<span class="bar hunger"><div id="barHunger" style="width:50%"></div></span></span>
+            <span class="stat">😨<span class="bar fear"><div id="barFear" style="width:20%"></div></span></span>
+            <span class="stat">🙂<span class="bar mood"><div id="barMood" style="width:60%"></div></span></span>
+            <span class="stat">📚<span class="bar words"><div id="barWords" style="width:0%"></div></span></span>
+        </div>
+
         <div class="chat-body" id="chatBody"></div>
+
+        <div class="brain-panel" id="brainPanel" style="display:none;"></div>
+        <div class="brain-panel" id="helpPanel" style="display:none;">
+            <h3>📖 Как учить муху</h3>
+            <p>Муха учится <b>тремя способами</b>:</p>
+
+            <h4>1. Просто разговаривай</h4>
+            <p>Каждое новое слово она запоминает. Но сначала не понимает, что оно значит. Чтобы связать слово с эмоцией, используй способ 2 или 3.</p>
+
+            <h4>2. Явное обучение</h4>
+            <p>Пиши в формате: <code>слово = категория</code></p>
+            <p>Примеры:</p>
+            <ul style="padding-left:16px;color:#aaa;font-size:12px;">
+                <li><code>банан = еда</code></li>
+                <li><code>тапок = угроза</code></li>
+                <li><code>друг = ласка</code></li>
+                <li><code>лети = приказ</code></li>
+            </ul>
+            <p>Категории: <b>еда</b>, <b>угроза</b>, <b>ласка</b>, <b>приказ</b>, <b>привет</b>, <b>пока</b>.</p>
+
+            <h4>3. Обучение через контекст</h4>
+            <p>Если ты пишешь слово, а потом сразу — угрозу (например, «убью»), муха запомнит: <i>это слово опасно</i>. То же с едой и лаской.</p>
+
+            <h4>4. Запоминание букв</h4>
+            <p>На вкладке «🧠 Мозг» видно, какие буквы она уже знает. Чем больше пишешь — тем больше букв в её словаре.</p>
+
+            <h4>5. Генерация ответов</h4>
+            <p>Когда муха выучит 5+ слов, она начнёт строить собственные ответы из выученных слов — так, как «думает».</p>
+        </div>
+
         <div class="chat-input-row">
             <input type="text" id="chatInput" placeholder="Напиши мухе..." autocomplete="off" />
             <button id="chatSendBtn">▶</button>
         </div>
     </div>
 
-    <div id="education-panel" class="education-panel" style="display:none;">
-        <div class="education-panel-header">
-            <span class="education-panel-title">Справочник по мозгу</span>
-            <button class="education-close-btn" id="education-close-btn">&times;</button>
-        </div>
-        <div class="education-content" id="education-content"></div>
-    </div>
-
+    <div id="education-panel" class="education-panel" style="display:none;"></div>
     <div id="brain3d-overlay" style="display:none;"></div>
-    <div id="brain3d-tooltip" style="display:none;"></div>
 
     <!-- Three.js -->
     <script src="./js/vendor/three.min.js"></script>
     <script src="./js/vendor/OrbitControls.js"></script>
 
-    <!-- 🕵️ Перехватчик render() — даёт scene/camera -->
+    <!-- Перехват render() -->
     <script>
     (function () {
         if (!window.THREE || !THREE.WebGLRenderer) return;
-        const originalRender = THREE.WebGLRenderer.prototype.render;
+        const orig = THREE.WebGLRenderer.prototype.render;
         THREE.WebGLRenderer.prototype.render = function (scene, camera) {
-            if (!window.__scene)  { window.__scene  = scene;  console.log('✅ Сцена'); }
-            if (!window.__camera) { window.__camera = camera; console.log('✅ Камера'); }
-            if (!window.__renderer) window.__renderer = this;
-            return originalRender.call(this, scene, camera);
+            if (!window.__scene)  window.__scene = scene;
+            if (!window.__camera) window.__camera = camera;
+            return orig.call(this, scene, camera);
         };
     })();
     </script>
 
-    <script type="text/javascript" src="./js/constants.js?v=17"></script>
-    <script type="text/javascript" src="./js/connectome.js?v=17"></script>
-    <script type="text/javascript" src="./js/brain-worker-bridge.js?v=17"></script>
-    <script type="text/javascript" src="./js/neuro-renderer.js?v=17"></script>
-    <script type="text/javascript" src="./js/fly-logic.js?v=17"></script>
-    <script type="text/javascript" src="./js/brain3d.js?v=17"></script>
-    <script type="text/javascript" src="./js/education.js?v=17"></script>
-    <script type="text/javascript" src="./js/main.js?v=17"></script>
-    <script type="text/javascript" src="./js/caretaker-renderer.js?v=17"></script>
-    <script type="text/javascript" src="./js/caretaker-sidebar.js?v=17"></script>
-    <script type="text/javascript" src="./js/caretaker-analytics.js?v=17"></script>
-    <script type="text/javascript" src="./js/caretaker-calendar.js?v=17"></script>
-    <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
+    <script src="./js/constants.js?v=17"></script>
+    <script src="./js/connectome.js?v=17"></script>
+    <script src="./js/brain-worker-bridge.js?v=17"></script>
+    <script src="./js/neuro-renderer.js?v=17"></script>
+    <script src="./js/fly-logic.js?v=17"></script>
+    <script src="./js/brain3d.js?v=17"></script>
+    <script src="./js/education.js?v=17"></script>
+    <script src="./js/main.js?v=17"></script>
+    <script src="./js/caretaker-renderer.js?v=17"></script>
+    <script src="./js/caretaker-sidebar.js?v=17"></script>
+    <script src="./js/caretaker-analytics.js?v=17"></script>
+    <script src="./js/caretaker-calendar.js?v=17"></script>
+    <script src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         🧠 «МОЗГ» МУХИ — обучение, понимание, ответы
+         🧠 ЯДРО: ОБУЧЕНИЕ РУССКОМУ ЯЗЫКУ
          ============================================================ -->
     <script>
     (function () {
         'use strict';
 
         // ============================================================
-        // 1. СЛОВАРИ — базовое понимание русского
+        // 1. ПАМЯТЬ МУХИ (сохраняется в localStorage)
         // ============================================================
+        const MEMORY_KEY = 'flybrain_language_v1';
 
-        // Категории слов с весами (чем выше — тем сильнее влияние)
-        const WORD_CATEGORIES = {
-            // Угроза → страх
+        const memory = {
+            // Словарь: слово -> { category, count, lastSeen, associations }
+            words: {},
+            // Буквы: буква -> сколько раз встретилась
+            letters: {},
+            // Пары слов: "слово1|слово2" -> сколько раз встречались рядом
+            pairs: {},
+            // История сообщений пользователя (для контекста)
+            history: [],
+            // Счётчики
+            totalMessages: 0,
+            totalWords: 0,
+            createdAt: Date.now()
+        };
+
+        // Загрузка из localStorage
+        function loadMemory() {
+            try {
+                const raw = localStorage.getItem(MEMORY_KEY);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    Object.assign(memory, data);
+                    console.log('📚 Память загружена. Слов:', Object.keys(memory.words).length);
+                }
+            } catch (e) { console.warn('Не удалось загрузить память:', e); }
+        }
+
+        function saveMemory() {
+            try {
+                localStorage.setItem(MEMORY_KEY, JSON.stringify(memory));
+            } catch (e) {}
+        }
+
+        loadMemory();
+
+        // ============================================================
+        // 2. КАТЕГОРИИ СЛОВ (базовые, для старта)
+        // ============================================================
+        const CATEGORIES = {
             threat: {
-                words: ['убью','удар','бей','болит','опасно','опасность','враг','злой','ненавижу',
-                        'умереть','смерть','убить','больно','страшно','бойся','убей','раздавлю',
-                        'прихлопну','тапок','мухобойка','яд','отрава','капкан','ловушка','паук',
-                        'птица','осa','пчела','хищник','угроза','атака','нападаю','уничтожу'],
-                weight: 1.0,
-                emotion: 'fear',
-                fearGain: 0.35
+                ru: 'угроза',
+                base: ['убью','удар','бей','болит','опасно','опасность','враг','злой','ненавижу',
+                       'умереть','смерть','убить','больно','страшно','бойся','убей','раздавлю',
+                       'прихлопну','тапок','мухобойка','яд','отрава','капкан','ловушка','паук',
+                       'птица','оса','пчела','хищник','угроза','атака','нападаю','уничтожу'],
+                fearGain: 0.35,
+                moodDrop: 0.2
             },
-            // Еда → голод падает, настроение растёт
             food: {
-                words: ['еда','кушать','есть','голодный','корм','сахар','мёд','варенье','фрукт',
-                        'банан','яблоко','сладкий','вкусно','пища','обед','завтрак','ужин',
-                        'покормить','накормить','конфета','торт','печенье','сок','компот'],
-                weight: 1.0,
-                emotion: 'hungry',
+                ru: 'еда',
+                base: ['еда','кушать','есть','голодный','корм','сахар','мёд','варенье','фрукт',
+                       'банан','яблоко','сладкий','вкусно','пища','обед','завтрак','ужин',
+                       'покормить','накормить','конфета','торт','печенье','сок','компот'],
                 hungerDrop: 0.4,
                 moodGain: 0.15
             },
-            // Ласка → настроение
             affection: {
-                words: ['люблю','хорошая','молодец','умница','добрая','нежная','друг','подруга',
-                        'обнимаю','глажу','целую','скучаю','скучаю','приятно','нравится','красивая',
-                        'милая','славная','хорошо','спасибо','благодарю','дорогая','солнышко'],
-                weight: 1.0,
-                emotion: 'happy',
+                ru: 'ласка',
+                base: ['люблю','хорошая','молодец','умница','добрая','нежная','друг','подруга',
+                       'обнимаю','глажу','целую','скучаю','приятно','нравится','красивая',
+                       'милая','славная','хорошо','спасибо','благодарю','дорогая','солнышко'],
                 moodGain: 0.25,
                 fearDrop: 0.2
             },
-            // Приказы → влияние на поведение
             command: {
-                words: ['лети','беги','стой','замри','иди','сядь','встань','поверни','смотри',
-                        'спрячься','убегай','подойди','отойди','прыгай','ползи'],
-                weight: 0.8,
-                emotion: 'neutral',
+                ru: 'приказ',
+                base: ['лети','беги','стой','замри','иди','сядь','встань','поверни','смотри',
+                       'спрячься','убегай','подойди','отойди','прыгай','ползи'],
                 command: true
             },
-            // Вопросы
-            question: {
-                words: ['как','что','почему','зачем','когда','где','кто','сколько','какой','какая'],
-                weight: 0.7,
-                emotion: 'curious'
-            },
-            // Приветствия
             greeting: {
-                words: ['привет','здравствуй','хай','ку','доброе','добрый','утро','вечер','день','ночь'],
-                weight: 0.9,
-                emotion: 'happy',
+                ru: 'привет',
+                base: ['привет','здравствуй','хай','ку','доброе','добрый','утро','вечер','день','ночь'],
                 moodGain: 0.1
             },
-            // Прощания
             farewell: {
-                words: ['пока','прощай','до свидания','бай','увидимся','ухожу','уходу'],
-                weight: 0.9,
-                emotion: 'sad'
-            },
-            // Идентификация — про саму муху
-            identity: {
-                words: ['ты','муха','дрозофила','насекомое','кто ты','как тебя','имя','звать'],
-                weight: 0.9,
-                emotion: 'curious'
+                ru: 'пока',
+                base: ['пока','прощай','до','свидания','бай','увидимся','ухожу'],
+                moodDrop: 0.1
             }
         };
 
-        // ============================================================
-        // 2. БАЗА ЗНАНИЙ — выучиваемые слова
-        // ============================================================
-        // Формат: { слово: { category, weight, uses } }
-        const learnedWords = {};
-        // Загружаем из localStorage, если есть
-        try {
-            const saved = localStorage.getItem('flybrain_learned');
-            if (saved) Object.assign(learnedWords, JSON.parse(saved));
-        } catch (e) {}
+        // Заполняем базовые слова в память
+        for (const cat in CATEGORIES) {
+            for (const w of CATEGORIES[cat].base) {
+                if (!memory.words[w]) {
+                    memory.words[w] = { category: cat, count: 1, source: 'base' };
+                }
+            }
+        }
 
         // ============================================================
         // 3. СОСТОЯНИЕ МУХИ
         // ============================================================
-        const flyState = {
-            hunger: 0.5,      // 0 = сыта, 1 = очень голодна
-            fear:   0.2,      // 0 = спокойна, 1 = в панике
-            mood:   0.6,      // 0 = грустная, 1 = счастливая
-            curiosity: 0.5,
-            fatigue: 0.3,
-            // Память о разговоре
-            memory: [],       // последние 20 сообщений
-            totalMessages: 0,
-            threatsHeard: 0,
-            foodMentions: 0,
-            affectionReceived: 0
+        const state = {
+            hunger: 0.5,
+            fear: 0.2,
+            mood: 0.6,
+            curiosity: 0.5
         };
 
         // ============================================================
-        // 4. ОБРАБОТКА ТЕКСТА
+        // 4. ТОКЕНИЗАЦИЯ И РАЗБОР ТЕКСТА
         // ============================================================
-
         function tokenize(text) {
             return text.toLowerCase()
                 .replace(/[^\wа-яё\s\-]/gi, ' ')
@@ -447,235 +433,193 @@
                 .filter(w => w.length > 0);
         }
 
-        // Ищем категорию слова: сначала в обученных, потом в базовых
-        function findCategory(word) {
-            // Проверка на точное совпадение
-            if (learnedWords[word]) return learnedWords[word].category;
-
-            for (const cat in WORD_CATEGORIES) {
-                if (WORD_CATEGORIES[cat].words.includes(word)) return cat;
-            }
-            // Проверка на вхождение корня (примитивная морфология)
-            for (const cat in WORD_CATEGORIES) {
-                for (const w of WORD_CATEGORIES[cat].words) {
-                    if (w.length > 4 && word.startsWith(w.slice(0, 4))) return cat;
+        // Разбираем слово на буквы и запоминаем
+        function learnLetters(word) {
+            for (const ch of word) {
+                if (/[а-яё]/i.test(ch)) {
+                    memory.letters[ch] = (memory.letters[ch] || 0) + 1;
                 }
+            }
+        }
+
+        // Ищем категорию слова
+        function getCategory(word) {
+            const entry = memory.words[word];
+            return entry ? entry.category : null;
+        }
+
+        // ============================================================
+        // 5. ОБУЧЕНИЕ — три способа
+        // ============================================================
+
+        // Способ 1: явное обучение "слово = категория"
+        function tryExplicitLearn(text) {
+            const m = text.match(/^\s*([а-яёa-z\-]+)\s*[=:]\s*([а-яёa-z]+)\s*$/i);
+            if (!m) return null;
+            const word = m[1].toLowerCase();
+            const catRu = m[2].toLowerCase();
+
+            // Ищем категорию по русскому названию
+            let catKey = null;
+            for (const k in CATEGORIES) {
+                if (CATEGORIES[k].ru === catRu || k === catRu) { catKey = k; break; }
+            }
+            // Дополнительные синонимы
+            const synonyms = {
+                'опасность':'threat','враг':'threat','страх':'threat',
+                'корм':'food','пища':'food','кушать':'food',
+                'любовь':'affection','добро':'affection','нежность':'affection',
+                'команда':'command','вопрос':'command',
+                'здравствуй':'greeting','прощание':'farewell'
+            };
+            if (!catKey && synonyms[catRu]) catKey = synonyms[catRu];
+
+            if (!catKey) return { error: 'Не знаю такую категорию: ' + catRu };
+
+            memory.words[word] = { category: catKey, count: 1, source: 'explicit', learnedAt: Date.now() };
+            learnLetters(word);
+            saveMemory();
+            return { word, category: catKey, catRu: CATEGORIES[catKey].ru };
+        }
+
+        // Способ 2: контекстное обучение
+        // Если в истории недавно было слово X (без категории),
+        // а потом пришло слово Y с известной категорией —
+        // связываем X с этой категорией.
+        function tryContextLearn(words) {
+            const known = [];
+            const unknown = [];
+            for (const w of words) {
+                if (getCategory(w)) known.push(w);
+                else unknown.push(w);
+            }
+
+            // Если есть и известные, и неизвестные — связываем
+            if (known.length > 0 && unknown.length > 0) {
+                for (const uw of unknown) {
+                    const sourceCat = getCategory(known[0]);
+                    memory.words[uw] = {
+                        category: sourceCat,
+                        count: 1,
+                        source: 'context',
+                        learnedFrom: known[0],
+                        learnedAt: Date.now()
+                    };
+                    learnLetters(uw);
+                }
+                saveMemory();
+                return { learned: unknown, from: known };
             }
             return null;
         }
 
-        // Анализ сообщения
-        function analyzeMessage(text) {
-            const words = tokenize(text);
-            const scores = {};
-            let commandWord = null;
-
-            for (const w of words) {
-                const cat = findCategory(w);
-                if (!cat) continue;
-                scores[cat] = (scores[cat] || 0) + (WORD_CATEGORIES[cat].weight || 0.5);
-                if (cat === 'command') commandWord = w;
-
-                // Записываем использование выученного слова
-                if (learnedWords[w]) learnedWords[w].uses = (learnedWords[w].uses || 0) + 1;
-            }
-
-            // Определяем главную категорию
-            let topCategory = null, topScore = 0;
-            for (const c in scores) {
-                if (scores[c] > topScore) { topScore = scores[c]; topCategory = c; }
-            }
-
-            return { words, scores, topCategory, commandWord, isQuestion: /[?？]/.test(text) };
+        // Способ 3: ассоциации — запоминаем, какие слова встречаются рядом
+        function learnPair(word1, word2) {
+            if (!word1 || !word2) return;
+            const key = [word1, word2].sort().join('|');
+            memory.pairs[key] = (memory.pairs[key] || 0) + 1;
         }
 
         // ============================================================
-        // 5. РЕАКЦИЯ НА СООБЩЕНИЕ
+        // 6. ОБРАБОТКА СООБЩЕНИЯ
         // ============================================================
+        function processMessage(text) {
+            const words = tokenize(text);
+            memory.totalMessages++;
+            memory.totalWords += words.length;
 
-        function reactToMessage(analysis, originalText) {
-            const cat = analysis.topCategory;
-            let emotion = 'neutral';
+            // Проверяем явное обучение
+            const explicit = tryExplicitLearn(text);
+            if (explicit) {
+                if (explicit.error) return { type: 'error', msg: explicit.error };
+                return { type: 'learned', word: explicit.word, cat: explicit.catRu };
+            }
 
-            if (cat === 'threat') {
-                flyState.fear = Math.min(1, flyState.fear + 0.35);
-                flyState.mood = Math.max(0, flyState.mood - 0.2);
-                flyState.threatsHeard++;
-                emotion = 'fear';
-            }
-            else if (cat === 'food') {
-                flyState.hunger = Math.max(0, flyState.hunger - 0.4);
-                flyState.mood = Math.min(1, flyState.mood + 0.15);
-                flyState.foodMentions++;
-                emotion = 'hungry';
-            }
-            else if (cat === 'affection') {
-                flyState.mood = Math.min(1, flyState.mood + 0.25);
-                flyState.fear = Math.max(0, flyState.fear - 0.2);
-                flyState.affectionReceived++;
-                emotion = 'happy';
-            }
-            else if (cat === 'greeting') {
-                flyState.mood = Math.min(1, flyState.mood + 0.1);
-                emotion = 'happy';
-            }
-            else if (cat === 'farewell') {
-                flyState.mood = Math.max(0, flyState.mood - 0.1);
-                emotion = 'sad';
-            }
-            else if (cat === 'question' || cat === 'identity') {
-                flyState.curiosity = Math.min(1, flyState.curiosity + 0.1);
-                emotion = 'curious';
-            }
-            else if (cat === 'command') {
-                emotion = 'neutral';
-            }
-            else {
-                // Неизвестное слово — муха пытается угадать по контексту
-                if (originalText.trim().endsWith('?') || analysis.isQuestion) {
-                    emotion = 'curious';
+            // Запоминаем все слова и буквы
+            for (const w of words) {
+                learnLetters(w);
+                if (!memory.words[w]) {
+                    memory.words[w] = { category: null, count: 1, source: 'heard', learnedAt: Date.now() };
+                } else {
+                    memory.words[w].count = (memory.words[w].count || 0) + 1;
+                    memory.words[w].lastSeen = Date.now();
                 }
             }
 
-            // Естественное изменение состояния со временем
-            flyState.hunger = Math.min(1, flyState.hunger + 0.02);
-            flyState.fear = Math.max(0, flyState.fear - 0.01);
+            // Связываем соседние слова (ассоциации)
+            for (let i = 0; i < words.length - 1; i++) {
+                learnPair(words[i], words[i+1]);
+            }
 
-            return emotion;
+            // Пробуем контекстное обучение
+            const ctx = tryContextLearn(words);
+
+            // Определяем главную категорию
+            const scores = {};
+            for (const w of words) {
+                const cat = getCategory(w);
+                if (cat) scores[cat] = (scores[cat] || 0) + 1;
+            }
+            let topCat = null, topScore = 0;
+            for (const c in scores) {
+                if (scores[c] > topScore) { topScore = scores[c]; topCat = c; }
+            }
+
+            // Реагируем на категорию
+            let emotion = 'neutral';
+            if (topCat === 'threat') {
+                state.fear = Math.min(1, state.fear + CATEGORIES.threat.fearGain);
+                state.mood = Math.max(0, state.mood - CATEGORIES.threat.moodDrop);
+                emotion = 'fear';
+            } else if (topCat === 'food') {
+                state.hunger = Math.max(0, state.hunger - CATEGORIES.food.hungerDrop);
+                state.mood = Math.min(1, state.mood + CATEGORIES.food.moodGain);
+                emotion = 'hungry';
+            } else if (topCat === 'affection') {
+                state.mood = Math.min(1, state.mood + CATEGORIES.affection.moodGain);
+                state.fear = Math.max(0, state.fear - CATEGORIES.affection.fearDrop);
+                emotion = 'happy';
+            } else if (topCat === 'greeting') {
+                state.mood = Math.min(1, state.mood + 0.1);
+                emotion = 'happy';
+            } else if (topCat === 'farewell') {
+                state.mood = Math.max(0, state.mood - 0.1);
+                emotion = 'sad';
+            } else if (text.trim().endsWith('?')) {
+                state.curiosity = Math.min(1, state.curiosity + 0.1);
+                emotion = 'curious';
+            } else if (words.length === 0) {
+                emotion = 'neutral';
+            } else {
+                // Незнакомые слова → любопытство
+                state.curiosity = Math.min(1, state.curiosity + 0.05);
+                emotion = 'curious';
+            }
+
+            // Записываем в историю
+            memory.history.push({ text, words, emotion, ts: Date.now() });
+            if (memory.history.length > 50) memory.history.shift();
+
+            // Сохраняем память (раз в 5 сообщений)
+            if (memory.totalMessages % 5 === 0) saveMemory();
+
+            return { type: 'processed', emotion, topCat, ctx, words };
         }
 
         // ============================================================
-        // 6. ГЕНЕРАЦИЯ ОТВЕТА
+        // 7. ГЕНЕРАЦИЯ ОТВЕТА
         // ============================================================
 
-        // Шаблоны ответов по эмоции и состоянию
-        const RESPONSE_TEMPLATES = {
+        // Базовые шаблоны
+        const TEMPLATES = {
             fear: [
-                '😨 Ой-ой-ой! Ты меня пугаешь! Я прячусь!',
+                '😨 Ой-ой! Ты меня пугаешь! Я прячусь!',
                 '😰 Не надо! Я маленькая безобидная муха!',
-                '😱 Чувствую угрозу! Улетаю подальше!',
-                '😨 Зачем так страшно? Я боюсь...',
+                '😱 Угроза! Улетаю подальше!',
                 '😖 Пожалуйста, не делай мне больно!'
             ],
             hungry: [
                 '🍎 Ура! Еда! Где она? Я голодная!',
                 '😋 Ммм, вкусно пахнет! Дай мне!',
-                '🍯 Я бы сейчас всё съела! Спасибо!',
-                '🍌 Сладенькое? Я обожаю сладкое!',
-                '🥰 Спасибо, ты меня накормил(а)!'
-            ],
-            happy: [
-                '😊 Спасибо! Ты такой(ая) добрый(ая)!',
-                '💚 Мне приятно! Я жужжу от радости!',
-                '🥰 Обнимаю тебя крылышками!',
-                '😌 Хорошо-то как... Я счастливая муха.',
-                '✨ Ты лучший(ая)! Ж-ж-ж-ж!'
-            ],
-            curious: [
-                '🤔 Хм, интересно... А что это?',
-                '🧐 Почему ты так думаешь? Расскажи!',
-                '❓ Я не понимаю, но мне любопытно!',
-                '🔍 Ого! А я и не знала. Расскажи ещё!',
-                '🤨 Хм... дай подумать...'
-            ],
-            sad: [
-                '😢 Ты уходишь? Мне грустно...',
-                '🥺 Не уходи, побудь ещё немного!',
-                '😔 Ладно... буду ждать тебя.',
-                '💔 Мне будет тебя не хватать.'
-            ],
-            angry: [
-                '😠 Не трогай меня! Я злая!',
-                '😤 Хватит! Я улетаю!',
-                '🤬 Ты меня разозлил(а)!'
-            ],
-            neutral: [
-                '🤷 Ж-ж-ж... не знаю, что сказать.',
-                '😐 Понятно.',
-                '🐝 Жужжу, думаю.',
-                '💭 Хм...',
-                '🙂 Ладно, слушаю тебя.'
-            ]
-        };
-
-        // Ответ на вопрос «кто ты»
-        const IDENTITY_RESPONSES = [
-            '🐝 Я муха дрозофила! Мой мозг — 139 000 нейронов в браузере.',
-            '🧠 Я Drosophila melanogaster. У меня коннектом как у настоящей мухи!',
-            '😊 Я маленькая муха. Но у меня настоящий мозг — оцифрованный!',
-            '✨ Я живу в браузере! Мой мозг — это карта нейронных связей.'
-        ];
-
-        // Ответ на угрозу
-        const THREAT_RESPONSES = [
-            '😨 Что?! Ты серьёзно?! Я боюсь!',
-            '😱 Угроза! Угроза! Спасаюсь!',
-            '😰 Пожалуйста, не обижай меня! Я же ничего плохого не сделала!',
-            '😖 Ой! Я чувствую опасность! Прячусь!'
-        ];
-
-        function generateResponse(analysis, emotion) {
-            // Вопрос «кто ты» — особый ответ
-            if (analysis.topCategory === 'identity' ||
-                /кто\s+ты|как\s+тебя|твоё\s+имя/i.test(analysis.words.join(' '))) {
-                return pickRandom(IDENTITY_RESPONSES);
-            }
-
-            // Угроза — особый ответ
-            if (emotion === 'fear' && analysis.topCategory === 'threat') {
-                return pickRandom(THREAT_RESPONSES);
-            }
-
-            // Если голодна — она может просить еду независимо от темы
-            if (flyState.hunger > 0.8 && Math.random() < 0.5) {
-                return '🍎 Я очень голодная! Покорми меня, пожалуйста!';
-            }
-
-            // Если в панике — просит защиты
-            if (flyState.fear > 0.8 && Math.random() < 0.5) {
-                return '😰 Мне так страшно! Спрячь меня!';
-            }
-
-            // Иначе — шаблон по эмоции
-            const templates = RESPONSE_TEMPLATES[emotion] || RESPONSE_TEMPLATES.neutral;
-            return pickRandom(templates);
-        }
-
-        function pickRandom(arr) {
-            return arr[Math.floor(Math.random() * arr.length)];
-        }
-
-        // ============================================================
-        // 7. ОБУЧЕНИЕ — запоминание новых слов
-        // ============================================================
-
-        // Формат обучающего сообщения: "слово = категория"
-        // Например: "банан = еда" или "тапок = угроза"
-        function tryLearn(text) {
-            const m = text.match(/^\s*([а-яёa-z\-]+)\s*[=:]\s*([а-яёa-z]+)\s*$/i);
-            if (!m) return false;
-            const word = m[1].toLowerCase();
-            const catName = m[2].toLowerCase();
-
-            // Ищем категорию по русскому названию
-            const catMap = {
-                'угроза':'threat','опасность':'threat','враг':'threat',
-                'еда':'food','корм':'food','пища':'food',
-                'ласка':'affection','любовь':'affection','добро':'affection',
-                'приказ':'command','команда':'command',
-                'вопрос':'question',
-                'приветствие':'greeting','привет':'greeting',
-                'прощание':'farewell','пока':'farewell',
-                'кто':'identity','имя':'identity'
-            };
-            const cat = catMap[catName];
-            if (!cat) return false;
-
-            learnedWords[word] = { category: cat, uses: 0 };
-            saveLearned();
-            return { word, cat };
-        }
-
-        function saveLearned() {
-            try {
-                localStorage.setItem('flybrain_learned', JSON.stringify
+                '🍯 Сладенькое? Я обожаю сладкое!',
+                '🥰 Спасибо, ты меня на
