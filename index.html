@@ -5,7 +5,6 @@
     <title>Мозг мухи</title>
     <link rel="stylesheet" type="text/css" href="./css/main.css?v=17">
     <style>
-        /* === Чат === */
         #fly-chat {
             position: fixed;
             bottom: 12px; right: 12px;
@@ -191,13 +190,13 @@
     <div id="brain3d-tooltip" style="display:none;"></div>
 
     <!-- ============================================================
-         💬 ЧАТ С НАСТОЯЩЕЙ НЕЙРОСЕТЬЮ
+         💬 ЧАТ С НЕЙРОСЕТЬЮ + ЖЁСТКИЙ ПРОМПТ + ПОСТ-ФИЛЬТР
          ============================================================ -->
     <div id="fly-chat">
         <div class="chat-header" id="chatHeader">
             <span class="chat-header-title">
                 <span class="status-dot loading" id="statusDot"></span>
-                🐝 Муха
+                🐝 Муха Жужа
             </span>
             <span class="chat-header-actions">
                 <button id="chatResetBtn" title="Очистить разговор">↺</button>
@@ -235,12 +234,11 @@
     <script type="text/javascript" src="./js/caretaker-bridge.js?v=17"></script>
 
     <!-- ============================================================
-         🧠 НАСТОЯЩИЙ ЧАТ (нейросеть в браузере через transformers.js)
+         🧠 НАСТОЯЩИЙ ЧАТ — Qwen 2.5 + жёсткий промпт + фильтр
          ============================================================ -->
     <script type="module">
     import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
 
-    // Настройки transformers.js
     env.allowLocalModels = false;
     env.useBrowserCache = true;
 
@@ -258,16 +256,9 @@
     const progressBar  = $('progressBar');
 
     let generator = null;
-    const chatHistory = [];  // [{ role: 'user'|'assistant', content: '...' }]
+    const chatHistory = [];
 
-    // ============================================================
-    // Состояние мухи (для контекста в промпте)
-    // ============================================================
-    const flyMood = {
-        hunger: 0.5,
-        fear: 0.2,
-        mood: 0.6
-    };
+    const flyMood = { hunger: 0.5, fear: 0.2, mood: 0.6 };
 
     function addMsg(text, cls) {
         const div = document.createElement('div');
@@ -284,51 +275,40 @@
     }
 
     // ============================================================
-    // Загрузка модели
+    // ЗАГРУЗКА МОДЕЛИ
     // ============================================================
     async function loadModel() {
+        const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
+
         try {
             setStatus('Загрузка нейросети (первый раз ~350 МБ)…', 'loading');
             progressWrap.style.display = 'inline-block';
 
-            generator = await pipeline(
-                'text-generation',
-                'onnx-community/Qwen2.5-0.5B-Instruct',
-                {
+            const onProgress = (data) => {
+                if (data.status === 'progress') {
+                    const pct = Math.round(data.progress || 0);
+                    progressBar.style.width = pct + '%';
+                    setStatus(`Загрузка: ${pct}%`, 'loading');
+                } else if (data.status === 'ready') {
+                    setStatus('Распаковка модели…', 'loading');
+                }
+            };
+
+            try {
+                generator = await pipeline('text-generation', MODEL, {
                     dtype: 'q4',
                     device: 'webgpu',
-                    progress_callback: (data) => {
-                        if (data.status === 'progress') {
-                            const pct = Math.round(data.progress || 0);
-                            progressBar.style.width = pct + '%';
-                            setStatus(`Загрузка: ${pct}% (${data.file || ''})`, 'loading');
-                        } else if (data.status === 'ready') {
-                            setStatus('Загрузка: распаковка…', 'loading');
-                        } else if (data.status === 'done') {
-                            setStatus('Загрузка: почти готово…', 'loading');
-                        }
-                    }
-                }
-            ).catch(async (err) => {
-                // Если WebGPU недоступен — пробуем на CPU (быстрее загрузится, медленнее работает)
-                console.warn('WebGPU недоступен, переключаюсь на CPU:', err.message);
-                setStatus('WebGPU нет, грузим на CPU…', 'loading');
-                return await pipeline(
-                    'text-generation',
-                    'onnx-community/Qwen2.5-0.5B-Instruct',
-                    {
-                        dtype: 'q4',
-                        device: 'wasm',
-                        progress_callback: (data) => {
-                            if (data.status === 'progress') {
-                                const pct = Math.round(data.progress || 0);
-                                progressBar.style.width = pct + '%';
-                                setStatus(`Загрузка: ${pct}%`, 'loading');
-                            }
-                        }
-                    }
-                );
-            });
+                    progress_callback: onProgress
+                });
+            } catch (gpuErr) {
+                console.warn('WebGPU не сработал, переключаюсь на CPU:', gpuErr.message);
+                setStatus('WebGPU недоступен, грузим на CPU…', 'loading');
+                generator = await pipeline('text-generation', MODEL, {
+                    dtype: 'q4',
+                    device: 'wasm',
+                    progress_callback: onProgress
+                });
+            }
 
             progressWrap.style.display = 'none';
             setStatus('Готова к разговору', 'ready');
@@ -337,45 +317,58 @@
             inputEl.placeholder = 'Напиши мухе...';
             inputEl.focus();
 
-            addMsg('🐝 Привет. Я муха дрозофила. У меня есть чувства — голод, страх, настроение. Спроси что-нибудь.', 'fly');
+            addMsg('🐝 Ж-ж-ж... Привет. Я муха Жужа. Спроси что-нибудь.', 'fly');
         } catch (e) {
             console.error('Ошибка загрузки модели:', e);
-            setStatus('Ошибка загрузки: ' + e.message, 'error');
+            setStatus('Ошибка: ' + e.message, 'error');
             addMsg('⚠️ Не удалось загрузить нейросеть. Проверь интернет и обнови страницу.', 'system');
         }
     }
 
     // ============================================================
-    // Генерация ответа
+    // ГЕНЕРАЦИЯ ОТВЕТА — жёсткий промпт + few-shot + пост-фильтр
     // ============================================================
     async function generateResponse(userText) {
-        // Системный промпт: характер мухи + текущее состояние
         const systemPrompt =
-            `Ты — муха дрозофила. Ты живая, у тебя есть чувства. ` +
-            `Твоё состояние сейчас: голод ${flyMood.hunger.toFixed(2)} (0=сыта, 1=очень голодна), ` +
-            `страх ${flyMood.fear.toFixed(2)} (0=спокойна, 1=в панике), ` +
-            `настроение ${flyMood.mood.toFixed(2)} (0=грустная, 1=счастливая). ` +
-            `Отвечай коротко, 1-2 предложения. Говори от первого лица, по-русски. ` +
-            `Иногда вставляй "ж-ж-ж". Если голодна — проси еду. Если напугана — проси защиты. ` +
-            `Если тебя хвалят — радуйся. Если ругают — бойся. Не выходи из роли мухи.`;
+            `Ты — обычная комнатная муха. Тебя зовут Жужа. ` +
+            `Ты маленькое чёрное насекомое с крыльями и шестью лапками. ` +
+            `Ты живёшь в комнате человека, летаешь, ищешь еду, боишься тапка. ` +
+            `\nВАЖНЫЕ ПРАВИЛА:\n` +
+            `- Ты НЕ человек. Ты НЕ депутат. Ты НЕ политик. Ты НЕ из Чечни, Азербайджана, СССР.\n` +
+            `- Ты НЕ знаешь слов "район", "совет", "республика", "край", "область".\n` +
+            `- У тебя НЕТ фамилии, отчества, должности. Только имя Жужа.\n` +
+            `- Отвечай ТОЛЬКО на русском языке.\n` +
+            `- Отвечай ОЧЕНЬ КОРОТКО: одно предложение, максимум два.\n` +
+            `- Иногда вставляй "ж-ж-ж".\n` +
+            `- Если голодна — проси еду. Если напугана — проси защиты. Если радостная — жужжи весело.\n` +
+            `\nТвоё состояние: голод=${flyMood.hunger.toFixed(1)}, страх=${flyMood.fear.toFixed(1)}, настроение=${flyMood.mood.toFixed(1)}.`;
 
-        // Собираем сообщения для модели
         const messages = [
             { role: 'system', content: systemPrompt },
-            ...chatHistory.slice(-6),
+            { role: 'user', content: 'Ты кто?' },
+            { role: 'assistant', content: 'Я муха Жужа, ж-ж-ж. Летаю тут, ищу, чего бы поесть.' },
+            { role: 'user', content: 'Как тебя зовут?' },
+            { role: 'assistant', content: 'Жужа. Просто муха, ж-ж-ж.' },
+            { role: 'user', content: 'Ты депутат?' },
+            { role: 'assistant', content: 'Ж-ж-ж, нет. Я муха, а не депутат. Летаю, ем.' },
+            { role: 'user', content: 'Как дела?' },
+            { role: 'assistant', content: 'Ж-ж-ж, нормально. Проголодалась немного.' },
+            { role: 'user', content: 'Я тебя убью!' },
+            { role: 'assistant', content: 'Ой-ой! Не надо! Я улетаю, ж-ж-ж!' },
+            ...chatHistory.slice(-4),
             { role: 'user', content: userText }
         ];
 
-        // Генерируем
         const output = await generator(messages, {
-            max_new_tokens: 80,
-            temperature: 0.85,
-            top_p: 0.9,
+            max_new_tokens: 40,
+            temperature: 0.5,
+            top_p: 0.85,
+            top_k: 40,
             do_sample: true,
-            repetition_penalty: 1.15
+            repetition_penalty: 1.25,
+            no_repeat_ngram_size: 3
         });
 
-        // Достаём последний ответ ассистента
         let answer = '';
         if (Array.isArray(output) && output[0] && output[0].generated_text) {
             const gen = output[0].generated_text;
@@ -383,14 +376,29 @@
                 const last = gen[gen.length - 1];
                 answer = last.content || last.text || '';
             } else if (typeof gen === 'string') {
-                // Если модель вернула строку — отрезаем промпт
                 answer = gen.split('assistant').pop().trim();
             }
         }
         answer = (answer || '').trim();
-        if (!answer) answer = 'Ж-ж-ж...';
 
-        // Обновляем состояние мухи в зависимости от ответа/вопроса
+        // ---------- ПОСТ-ФИЛЬТР ----------
+        answer = answer.replace(
+            /депутат|совет|район|Чечн|Азербайджан|Азербит|СССР|республик|област|край|парти|политик|президент|министр|государств|Бекоруллин|Калышата|Рабатович|Мухахкан|Абдальиндин|Салачагушина|Кирбиевский|Загéшского/gi,
+            ''
+        );
+        answer = answer.replace(/(?:[А-ЯЁ][а-яё]+\s+){2,}[А-ЯЁ][а-яё]+/g, 'Жужа');
+        answer = answer.replace(/[a-zA-Z]{3,}/g, '');
+        answer = answer.replace(/[\u4e00-\u9fff\u3040-\u30ff]+/g, '');
+        answer = answer.replace(/\s+/g, ' ').trim();
+
+        if (answer.length < 5) {
+            answer = 'Ж-ж-ж... Я муха Жужа. Летаю, ищу еду.';
+        }
+        if (!/ж-ж|муха|жужа|летаю|крыл|лапк|еда|голод/i.test(answer)) {
+            answer = 'Ж-ж-ж. ' + answer;
+        }
+
+        // ---------- Меняем состояние мухи ----------
         const lower = userText.toLowerCase();
         if (/еда|есть|кушать|голод|корм|яблоко|сахар|мёд/.test(lower)) {
             flyMood.hunger = Math.max(0, flyMood.hunger - 0.3);
@@ -409,7 +417,7 @@
     }
 
     // ============================================================
-    // Отправка сообщения
+    // ОТПРАВКА
     // ============================================================
     async function sendMessage() {
         const text = inputEl.value.trim();
@@ -419,19 +427,18 @@
         addMsg(text, 'user');
         chatHistory.push({ role: 'user', content: text });
 
-        // Показываем «думает…»
-        const thinkingMsg = addMsg('', 'thinking');
+        const thinking = addMsg('', 'thinking');
         sendBtn.disabled = true;
         inputEl.disabled = true;
 
         try {
             const answer = await generateResponse(text);
-            thinkingMsg.remove();
+            thinking.remove();
             addMsg(answer, 'fly');
             chatHistory.push({ role: 'assistant', content: answer });
         } catch (e) {
-            thinkingMsg.remove();
-            addMsg('⚠️ Ошибка генерации: ' + e.message, 'system');
+            thinking.remove();
+            addMsg('⚠️ Ошибка: ' + e.message, 'system');
             console.error(e);
         } finally {
             sendBtn.disabled = false;
@@ -445,9 +452,6 @@
         if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
     });
 
-    // ============================================================
-    // UI кнопки
-    // ============================================================
     toggleBtn.addEventListener('click', e => {
         e.stopPropagation();
         chatEl.classList.toggle('collapsed');
@@ -465,7 +469,7 @@
         flyMood.mood = 0.6;
     });
 
-    // Перетаскивание окна чата за шапку
+    // Перетаскивание
     let dragX = 0, dragY = 0, dragging = false;
     headerEl.addEventListener('pointerdown', e => {
         if (e.target.closest('button')) return;
@@ -487,17 +491,14 @@
         try { headerEl.releasePointerCapture(e.pointerId); } catch(_) {}
     });
 
-    // ============================================================
-    // Погнали
-    // ============================================================
-    addMsg('⏳ Загружаю нейросеть. Это займёт 1–3 минуты при первом запуске.', 'system');
+    addMsg('⏳ Загружаю нейросеть. Первый раз — 1–3 минуты.', 'system');
     loadModel();
 
     console.log(
-        '%c✅ Чат с реальной нейросетью инициализирован.\n' +
-        '• Модель: Qwen2.5-0.5B-Instruct (350 МБ, кэшируется браузером)\n' +
-        '• Работает на WebGPU (если есть), иначе на CPU\n' +
-        '• Первый запуск — долго, потом мгновенно',
+        '%c✅ Чат готов.\n' +
+        '• Модель: Qwen2.5-0.5B-Instruct (350 МБ)\n' +
+        '• Жёсткий промпт + few-shot примеры + пост-фильтр\n' +
+        '• Если муха снова чудит — скажи, поменяем на 1.5B',
         'color:lime;font-weight:bold'
     );
     </script>
